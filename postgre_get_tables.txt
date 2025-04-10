@@ -1,0 +1,19 @@
+SELECT 
+    t.table_name,
+    json_agg(
+        json_build_object(
+            'column_name', c.column_name, 
+            'data_type', c.data_type
+        )
+    ) AS columns
+FROM 
+    information_schema.tables t
+JOIN 
+    information_schema.columns c 
+    ON t.table_name = c.table_name
+WHERE 
+    t.table_schema = 'public'
+    AND t.table_type = 'BASE TABLE'
+    AND c.table_schema = 'public'
+GROUP BY 
+    t.table_name;

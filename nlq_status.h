@@ -1,0 +1,17 @@
+#ifndef MBASE_NLQ_STATUS_H
+#define MBASE_NLQ_STATUS_H
+
+#include <mbase/common.h>
+
+#define NLQ_SUCCESS 0
+#define NLQ_ENGINE_OVERLOADED 1
+#define NLQ_CONNECTION_FAILED 2
+#define NLQ_PROMPT_INVALID 3
+#define NLQ_INTERNAL_SERVER_ERROR 4
+#define NLQ_INVALID_PAYLOAD 5
+#define NLQ_NOT_SUPPORTED 6
+#define NLQ_DB_ERR 7
+#define NLQ_INPUT_TOO_LONG 8
+#define NLQ_TOO_MUCH_DATA 9
+
+#endif // MBASE_NLQ_STATUS_H

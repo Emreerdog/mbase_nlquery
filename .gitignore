@@ -1,0 +1,10 @@
+.vs/
+.vscode/
+out/
+build/
+build_cpu/
+build_cuda/
+docs/build/
+scripts/__pycache__
+change_log.txt
+.DS_Store
