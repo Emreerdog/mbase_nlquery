@@ -4,16 +4,93 @@
 #include <libpq-fe.h>
 #include <mbase/io_file.h>
 #include <mbase/json/json.h>
+#include <mbase/argument_get_value.h>
+#include <mbase/inference/inf_gguf_metadata_configurator.h>
 #include "global_state.h"
 #include "db_ops.h"
 #include "model_proc_cl.h"
 #include "nlq_status.h"
 #include "httplib.h"
 
-void send_error(const httplib::Request& in_req, httplib::Response& in_resp, int in_status_code)
+#define MBASE_NLQUERY_VERSION "v1.0.0"
+
+void print_usage()
+{
+    printf("========================================\n");
+    printf("#Program name:      mbase_nlquery\n");
+    printf("#Version:           %s\n", MBASE_NLQUERY_VERSION);
+    printf("#Type:              Application\n");
+    printf("#Further docs:      https://github.com/Emreerdog/mbase_nlquery\n");
+    printf("***** DESCRIPTION *****\n");
+    printf("This program runs the NLQuery application and provides a single REST API endpoint '/nlquery'\n");
+    printf("========================================\n\n");
+    printf("Usage: mbase_nlquery *[<option> [<value>]]\n");
+    printf("Options: \n\n");
+    printf("--help                            Print usage.\n");
+    printf("-v, --version                     Shows program version.\n");
+    printf("--hostname <str>                  Hostname to listen to (default=\"127.0.0.1\").\n");
+    printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 is HTTPS\").\n");
+    printf("--ssl-public <str>                SSL public key file.\n");
+    printf("--ssl-private <str>               SSL private key file.\n");
+    printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
+    printf("--disable-webui                   Disables webui.\n\n");
+}
+
+void send_error(const httplib::Request& in_req, httplib::Response& in_resp, int in_status_code, const mbase::string& in_data = "")
 {
     mbase::Json errorDesc;
     errorDesc["status"] = in_status_code;
+
+    if(in_status_code == NLQ_ENGINE_OVERLOADED)
+    {
+        errorDesc["message"] = "NLQuery engine is overloaded. Try again later";
+    }
+
+    else if(in_status_code == NLQ_CONNECTION_FAILED)
+    {
+        errorDesc["message"] = "Database connection failed";
+    }
+
+    else if(in_status_code == NLQ_PROMPT_INVALID)
+    {
+        errorDesc["message"] = "Given query is invalid. Make sure it is natural language and its context is related to the SQL database";
+    }
+
+    else if(in_status_code == NLQ_INTERNAL_SERVER_ERROR)
+    {
+        errorDesc["message"] = "Internal server error. Try again later";
+    }
+
+    else if(in_status_code == NLQ_INVALID_PAYLOAD)
+    {
+        errorDesc["message"] = "Message body is invalid. Make sure you populate the mandatory fields correctly";
+    }
+
+    else if(in_status_code == NLQ_NOT_SUPPORTED)
+    {
+        errorDesc["message"] = "Given database provider is not supported";
+    }
+
+    else if(in_status_code == NLQ_DB_ERR)
+    {
+        errorDesc["message"] = "Database failed to execute the generated query";
+    }
+
+    else if(in_status_code == NLQ_INPUT_TOO_LONG)
+    {
+        errorDesc["message"] = "Given prompt is too long. This may also happen if the provided sql_history is too long";
+    }
+
+    else if(in_status_code == NLQ_TOO_MUCH_DATA)
+    {
+        errorDesc["message"] = "Too much data returned from the database";
+    }
+
+    if(in_data.size())
+    {
+        errorDesc["data"] = in_data;
+    }
+
     mbase::string outputString = errorDesc.toString();
     in_resp.set_content(outputString.c_str(), outputString.size(), "application/json");
 }
@@ -29,7 +106,6 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
         return;
     }
     mbase::Json& givenJson = parseResult.second;
-    std::cout << givenJson.toStringPretty() << std::endl;
     if(!givenJson["db_name"].isString() || !givenJson["db_provider"].isString() || !givenJson["db_username"].isString()
         || !givenJson["db_password"].isString() || !givenJson["db_hostname"].isString() || !givenJson["db_port"].isLong()
         || !givenJson["query"].isString())
@@ -39,7 +115,7 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
     }
 
     const mbase::string& databaseName = givenJson["db_name"].getString();
-    const mbase::string& provider = givenJson["db_provider"].getString();
+    mbase::string& provider = givenJson["db_provider"].getString();
     const mbase::string& username = givenJson["db_username"].getString();
     const mbase::string& password = givenJson["db_password"].getString();
     const mbase::string& hostname = givenJson["db_hostname"].getString();
@@ -58,7 +134,9 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
         return;
     }
     
-    if(provider == "PostgreSQL")
+    provider.to_lower();
+
+    if(provider == "postgresql")
     {
         mbase::string outputFormat = mbase::string::from_format("host=%s port=%d dbname=%s user=%s password=%s connect_timeout=2 sslmode=allow", hostname.c_str(), hostPort, databaseName.c_str(), username.c_str(), password.c_str());
         PGconn* connPtr = PQconnectdb(outputFormat.c_str());
@@ -86,15 +164,16 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
 
         mbase::string formedString = mbase::prepare_prompt(provider, tableInformation, sqlHistory, query);
         mbase::Json outputJson;
-        mbase::psql_produce_output(connPtr, gGlobalModel, formedString, outputJson);
+        mbase::I32 outputCode;
+        mbase::string generatedSql;
+        if(!mbase::psql_produce_output(connPtr, gGlobalModel, formedString, outputJson, outputCode, generatedSql))
+        {
+            send_error(in_req, in_resp, outputCode, generatedSql);
+            return;
+        }
         mbase::string outputString = outputJson.toString();
         in_resp.set_content(outputString.c_str(), outputString.size(), "application/json");
         return;
-    }
-
-    else if(provider == "MySQL")
-    {
-        
     }
 
     else
@@ -125,15 +204,80 @@ void server_thread()
     svr->set_mount_point("/", "./static");
     svr->Post("/nlquery", nlquery_endpoint);
     printf("Server started listening...\n");
-    svr->listen("127.0.0.1", 8080);
-    printf("ERR: Server can't listen\n");
+    svr->listen(gListenHostname.c_str(), gListenPort);
+    printf("ERR: Server can't listen! Make sure the hostname and port is valid\n");
     exit(1);
 }
 
-int main()
+int main(int argc, char** argv)
 {       
-    mbase::NlqModel myModel(4);
-    myModel.initialize_model_sync(L"/Users/erdog/GGUF/qwen2.5-7b-instruct-q3_k_m.gguf", 9999999, 999);
+    for(int i = 0; i < argc; i++)
+    {
+        mbase::string argumentString = argv[i];
+        if(argumentString == "-v" || argumentString == "--version")
+        {
+            printf("MBASE NLQuery %s\n", MBASE_NLQUERY_VERSION);
+            return 0;
+        }
+
+        else if(argumentString == "--help")
+        {
+            print_usage();
+            return 0;
+        }
+
+        else if(argumentString == "--hostname")
+        {
+            mbase::argument_get<mbase::string>::value(i, argc, argv, gListenHostname);
+        }
+
+        else if(argumentString == "--port")
+        {
+            mbase::argument_get<int>::value(i, argc, argv, gListenPort);
+        }
+
+        else if(argumentString == "--ssl-public")
+        {
+            mbase::argument_get<mbase::string>::value(i, argc, argv, gSSLPublicPath);
+        }
+
+        else if(argumentString == "--ssl-private")
+        {
+            mbase::argument_get<mbase::string>::value(i, argc, argv, gSSLPrivatePath);
+        }
+
+        else if(argumentString == "--user-count")
+        {
+            mbase::argument_get<int>::value(i, argc, argv, gUserCount);
+        }
+
+        else if(argumentString == "--disable-webui")
+        {
+            gIsWebui = false;
+        }
+    }
+
+    if(!gUserCount)
+    {
+        printf("ERR: User count must be greater than 0\n");
+    }
+
+    if(!gListenHostname.size())
+    {
+        printf("ERR: Hostname must be specified\n");
+    }
+
+    if(!gListenPort)
+    {
+        printf("ERR: Port can't be 0\n");
+    }
+
+    mbase::NlqModel myModel(gUserCount);
+    if(myModel.initialize_model_sync(L"/Users/erdog/GGUF/Qwen2.5-7B-Instruct-1M-q8_0.gguf", 9999999, 999) == mbase::NlqModel::flags::INF_MODEL_ERR_CANT_LOAD_MODEL)
+    {
+        printf("ERR: Failed to load model\n");
+        exit(1);
+    }
     myModel.update();
 
     gGlobalModel = &myModel;

@@ -23,7 +23,7 @@
                     <pre>
                         <code>
 {
-    "db_provider" : "PostgreSQL | MySQL",
+    "db_provider" : "PostgreSQL",
     "db_hostname" : "#host_here",
     "db_port" : #port,
     "db_name" : "#database",
@@ -54,7 +54,7 @@
                         <code>
 {
     "status" : 0,
-    "sql" : #generated_sql_here,
+    "sql" : #generated_sql_here
 }
                         </code>
                     </pre>
@@ -62,7 +62,9 @@
                     <pre>
                         <code>
 {
-    "status" : #status_code
+    "status" : #status_code,
+    "message" : #error_description
+    "data"? : #generated_query // this is present if the generated sql can't be executed 
 }
                         </code>
                     </pre>
@@ -100,7 +102,7 @@
             </div>
             <div class="col-md-4">
                 <div class="text-center mb-4">
-                    <img src="Group_2.svg" alt="" style="max-width: 30%;">
+                    <img src="mbase_nlquery_logo.svg" alt="" style="max-width: 30%;">
                 </div>
                 <div class="alert alert-danger" role="alert" id="input_feedback" style="display: none;">
                     A simple danger alert with an example link. Give it a click if you like.
@@ -242,14 +244,6 @@ To enhance response quality, your generated SQL history is temporarily stored on
 
     function showInputFeedback(in_feedback_message)
     {
-        if(document.getElementById("remember_context").checked == true)
-        {
-            console.log("Button is checked!");
-        }
-        else
-        {
-            console.log("Button is unchecked!");
-        }
         let inputFeedbackContainer = document.getElementById("input_feedback");
         inputFeedbackContainer.innerHTML = in_feedback_message;
         inputFeedbackContainer.style.display = "block";
@@ -400,13 +394,12 @@ To enhance response quality, your generated SQL history is temporarily stored on
             else
             {
                 
-                if(sqlHistory.length == 10)
+                if(sqlHistory.length == 5)
                 {
                     sqlHistory.shift();
                 }
                 
                 sqlHistory.push(queryResult.sql);
-                console.log(sqlHistory);
 
                 if(queryResult.status == 9)
                 {
@@ -424,7 +417,6 @@ To enhance response quality, your generated SQL history is temporarily stored on
                 }
             }
         }
-        console.log(jsonToSend);
         xhttp.open("POST", "/nlquery", true);
         xhttp.send(JSON.stringify(jsonToSend));
     }

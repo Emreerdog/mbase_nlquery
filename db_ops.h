@@ -25,19 +25,18 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables)
     {
         outputTables += mbase::string::from_format("%s : %s\n", PQgetvalue(resultExec, i, 0), PQgetvalue(resultExec, i, 1));
     }
-
     out_tables = std::move(outputTables);
 
     PQclear(resultExec);
     return true;
 }
 
-bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase::string& in_prompt, mbase::Json& out_json)
+bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase::string& in_prompt, mbase::Json& out_json, I32& out_status, mbase::string& out_sql)
 {
     NlqProcessor* activeProcessor = NULL;
     if(!in_model->acquire_processor(activeProcessor))
     {
-        out_json["status"] = NLQ_ENGINE_OVERLOADED;
+        out_status = NLQ_ENGINE_OVERLOADED;
         return false;
     }
     mbase::context_line ctxLine;
@@ -46,7 +45,7 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
     mbase::inf_text_token_vector tokenVector;
     if(activeProcessor->tokenize_input(&ctxLine, 1, tokenVector) == NlqProcessor::flags::INF_PROC_ERR_UNABLE_TO_TOKENIZE_INPUT)
     {
-        out_json["status"] = NLQ_INTERNAL_SERVER_ERROR;
+        out_status = NLQ_INTERNAL_SERVER_ERROR;
         in_model->release_processor(activeProcessor);
         return false;
     }
@@ -54,7 +53,7 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
     clientPtr->query_hard_reset();
     if(activeProcessor->execute_input_sync(tokenVector) != NlqProcessor::flags::INF_PROC_INFO_NEED_UPDATE)
     {
-        out_json["status"] = NLQ_INTERNAL_SERVER_ERROR;
+        out_status = NLQ_INTERNAL_SERVER_ERROR;
         in_model->release_processor(activeProcessor);
         return false;
     }
@@ -69,14 +68,15 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
     in_model->release_processor(activeProcessor);
     if(genSql == "NLQ_INV")
     {
-        out_json["status"] = NLQ_PROMPT_INVALID;
+        out_status = NLQ_PROMPT_INVALID;
         return false;
     }
 
     PGresult* resultExec = PQexec(in_connection, genSql.c_str());
     if(!resultExec)
     {
-        out_json["status"] = NLQ_INTERNAL_SERVER_ERROR;
+        out_status = NLQ_INTERNAL_SERVER_ERROR;
+        out_sql = genSql;
         PQclear(resultExec);
         return false;
     }
@@ -105,7 +105,8 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
                 if(rowCounter == gMaxRows)
                 {
                     // Prompt returned a result which contains more than 1000 rows
-                    out_json["status"] = NLQ_TOO_MUCH_DATA;
+                    out_status = NLQ_TOO_MUCH_DATA;
+                    out_sql = genSql;
                     break;
                 }
                 I32 binaryLength = PQgetlength(resultExec, j, i);
@@ -135,11 +136,12 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
 
     else
     {
-        out_json["status"] = NLQ_DB_ERR;
+        out_sql = genSql;
+        out_status = NLQ_DB_ERR;
         PQclear(resultExec);
         return false;
     }
-
+    out_sql = genSql;
     PQclear(resultExec);
     return true;
 }

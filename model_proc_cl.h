@@ -97,13 +97,15 @@ public:
     GENERIC on_initialize() override
     {
         mbase::inf_text_token_vector tokVec;
-        mbase::string fileContent = mbase::read_file_as_string(L"./sys_prompt_structure.txt");
+        //mbase::string fileContent = mbase::read_file_as_string(L"./sys_prompt_structure.txt");
+        mbase::GgufMetaConfigurator metaConfigurator(L"/Users/erdog/GGUF/Qwen2.5-7B-Instruct-1M-q8_0.gguf");
 
-        mbase::context_line ctx;
-        ctx.mMessage = fileContent;
-        ctx.mRole = mbase::context_role::SYSTEM;
+        //mbase::context_line ctx;
+        //ctx.mMessage = fileContent;
+        //ctx.mRole = mbase::context_role::SYSTEM;
         this->set_inference_client(&myClient);
-        this->tokenize_input(&ctx, 1, tokVec);
+        //this->tokenize_input(&ctx, 1, tokVec);
+        metaConfigurator.get_key("nlquery.tokens", tokVec);
         this->execute_input_sync(tokVec, true);
         printf("Processor (%d) initialized\n", gProcCounter);
         gProcCounter++;
