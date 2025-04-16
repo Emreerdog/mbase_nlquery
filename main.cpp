@@ -28,8 +28,9 @@ void print_usage()
     printf("Options: \n\n");
     printf("--help                            Print usage.\n");
     printf("-v, --version                     Shows program version.\n");
+    printf("--program-path <str>              NLQuery web page and model path (default=./nlquery).\n");
     printf("--hostname <str>                  Hostname to listen to (default=\"127.0.0.1\").\n");
-    printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 is HTTPS\").\n");
+    printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 if HTTPS\").\n");
     printf("--ssl-public <str>                SSL public key file.\n");
     printf("--ssl-private <str>               SSL private key file.\n");
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
@@ -201,7 +202,11 @@ void server_thread()
     svr = &server;
     #endif
 
-    svr->set_mount_point("/", "./static");
+    if(gIsWebui)
+    {
+        mbase::string webPath = gProgramPath + "/web";
+        svr->set_mount_point("/", webPath.c_str());
+    }
     svr->Post("/nlquery", nlquery_endpoint);
     printf("Server started listening...\n");
     svr->listen(gListenHostname.c_str(), gListenPort);
@@ -224,6 +229,11 @@ int main(int argc, char** argv)
         {
             print_usage();
             return 0;
+        }
+
+        else if(argumentString == "--program-path")
+        {
+            mbase::argument_get<mbase::string>::value(i, argc, argv, gProgramPath);
         }
 
         else if(argumentString == "--hostname")
@@ -272,10 +282,43 @@ int main(int argc, char** argv)
         printf("ERR: Port can't be 0\n");
     }
 
-    mbase::NlqModel myModel(gUserCount);
-    if(myModel.initialize_model_sync(L"/Users/erdog/GGUF/Qwen2.5-7B-Instruct-1M-q8_0.gguf", 9999999, 999) == mbase::NlqModel::flags::INF_MODEL_ERR_CANT_LOAD_MODEL)
+    gModelPath = gProgramPath + "/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
+    bool triedBefore = false;
+
+    while(1)
     {
-        printf("ERR: Failed to load model\n");
+        mbase::GgufMetaConfigurator ggufMetaConfig(mbase::from_utf8(gModelPath));
+
+        if(!ggufMetaConfig.is_open())
+        {
+            if(triedBefore)
+            {
+                printf("ERR: NLQuery attempted to download the model from Huggingface but failed. Make sure you have the 'curl' and an internet connection so that the NLQuery will download the model at program startup\n");
+                exit(1);
+            }
+            printf("INFO: Model not found at program path\n");
+            printf("INFO: Downloading the model from Huggingface: \n");
+            mbase::string directoryChange = "cd " + gProgramPath;
+            system(directoryChange.c_str());
+            system("curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf");
+            triedBefore = true;
+        }
+
+        else
+        {
+            if(!ggufMetaConfig.has_kv_key("nlquery.tokens"))
+            {
+                printf("ERR: Model parameters are manually altered!\n");
+                printf("INFO: Delete the model and restart the application\n");
+            }
+            break;
+        }
+    }
+
+    mbase::NlqModel myModel(gUserCount);
+    if(myModel.initialize_model_sync(mbase::from_utf8(gModelPath), 9999999, 999) == mbase::NlqModel::flags::INF_MODEL_ERR_CANT_LOAD_MODEL)
+    {
+        printf("ERR: Failed to load the model\n");
         exit(1);
     }
     myModel.update();

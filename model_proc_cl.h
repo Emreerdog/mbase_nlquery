@@ -5,12 +5,9 @@
 #include <mbase/inference/inf_t2t_model.h>
 #include <mbase/inference/inf_t2t_processor.h>
 #include <mbase/inference/inf_t2t_client.h>
+#include "global_state.h"
 
 MBASE_BEGIN
-
-class NlqModel;
-class NlqProcessor;
-class NlqClient;
 
 I32 gProcCounter = 1;
 
@@ -97,17 +94,13 @@ public:
     GENERIC on_initialize() override
     {
         mbase::inf_text_token_vector tokVec;
-        //mbase::string fileContent = mbase::read_file_as_string(L"./sys_prompt_structure.txt");
-        mbase::GgufMetaConfigurator metaConfigurator(L"/Users/erdog/GGUF/Qwen2.5-7B-Instruct-1M-q8_0.gguf");
+        mbase::GgufMetaConfigurator metaConfigurator(mbase::from_utf8(gModelPath));
 
-        //mbase::context_line ctx;
-        //ctx.mMessage = fileContent;
-        //ctx.mRole = mbase::context_role::SYSTEM;
         this->set_inference_client(&myClient);
-        //this->tokenize_input(&ctx, 1, tokVec);
         metaConfigurator.get_key("nlquery.tokens", tokVec);
+        printf("INFO: Initializing (%d) processor...\n", gProcCounter);
         this->execute_input_sync(tokVec, true);
-        printf("Processor (%d) initialized\n", gProcCounter);
+        printf("INFO: Processor (%d) initialized\n", gProcCounter);
         gProcCounter++;
         mIsPromptCached = true;
     }
