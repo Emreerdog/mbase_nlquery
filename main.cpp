@@ -188,9 +188,9 @@ void server_thread()
 {
     httplib::Server* svr = NULL;
     #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-    if(gProgramData.keyFileSet)
+    if(gSSLEnabled)
     {
-        svr = new httplib::SSLServer(gProgramData.publicKeyFile.c_str(), gProgramData.privateKeyFile.c_str());
+        svr = new httplib::SSLServer(gSSLPublicPath.c_str(), gSSLPrivatePath.c_str());
     }
 
     else
@@ -280,6 +280,11 @@ int main(int argc, char** argv)
     if(!gListenPort)
     {
         printf("ERR: Port can't be 0\n");
+    }
+
+    if(gSSLPublicPath.size() || gSSLPrivatePath.size())
+    {
+        gSSLEnabled = true;
     }
 
     gModelPath = gProgramPath + "/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";

@@ -11,6 +11,7 @@ inline mbase::I32 gMaxRows = 1000;
 inline mbase::I32 gUserCount = 2;
 inline mbase::I32 gListenPort = 8080;
 inline bool gIsWebui = true;
+inline bool gSSLEnabled = false;
 inline mbase::NlqModel* gGlobalModel;
 inline mbase::mutex gLoopSync;
 inline mbase::string gListenHostname = "127.0.0.1";
