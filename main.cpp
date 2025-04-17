@@ -34,6 +34,7 @@ void print_usage()
     printf("--ssl-public <str>                SSL public key file.\n");
     printf("--ssl-private <str>               SSL private key file.\n");
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
+    printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
     printf("--disable-webui                   Disables webui.\n\n");
 }
 
@@ -124,9 +125,15 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
     int hostPort = givenJson["db_port"].getLong();
 
     mbase::string sqlHistory;
+    bool genOnly = true;
     if(givenJson["sql_history"].isString())
     {
         sqlHistory = givenJson["sql_history"].getString();
+    }
+
+    if(givenJson["generate_only"].isBool())
+    {
+        genOnly = givenJson["generate_only"].getBool();
     }
 
     if(!databaseName.size() || !provider.size() || !username.size() || !hostname.size() || !query.size() || hostPort <= 0)
@@ -167,7 +174,7 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
         mbase::Json outputJson;
         mbase::I32 outputCode;
         mbase::string generatedSql;
-        if(!mbase::psql_produce_output(connPtr, gGlobalModel, formedString, outputJson, outputCode, generatedSql))
+        if(!mbase::psql_produce_output(connPtr, gGlobalModel, genOnly, formedString, outputJson, outputCode, generatedSql))
         {
             send_error(in_req, in_resp, outputCode, generatedSql);
             return;
@@ -261,6 +268,11 @@ int main(int argc, char** argv)
             mbase::argument_get<int>::value(i, argc, argv, gUserCount);
         }
 
+        else if(argumentString == "--max-rows")
+        {
+            mbase::argument_get<int>::value(i, argc, argv, gMaxRows);
+        }
+
         else if(argumentString == "--disable-webui")
         {
             gIsWebui = false;
@@ -303,9 +315,8 @@ int main(int argc, char** argv)
             }
             printf("INFO: Model not found at program path\n");
             printf("INFO: Downloading the model from Huggingface: \n");
-            mbase::string directoryChange = "cd " + gProgramPath;
-            system(directoryChange.c_str());
-            system("curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf");
+            mbase::string shellCommand = "cd $HOME/.local/myapp && curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
+            system(shellCommand.c_str());
             triedBefore = true;
         }
 

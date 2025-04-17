@@ -19,6 +19,8 @@
                         <small>You can locally run and host NLQuery API for your own environment. Contact for details erdog@mbasesoftware.com</small>
                     </div>               
                     <h6>Endpoint url: /nlquery</h6>
+                    <h6>Content-Type: application/json</h6>
+                    <h6>Method: POST</h6>
                     <h6>Request data:</h6>
                     <pre>
                         <code>
@@ -28,9 +30,10 @@
     "db_port" : #port,
     "db_name" : "#database",
     "db_username" : "#username",
-    "db_password" : "#password", // Optional
+    "db_password" : "#password",
     "query" : "#Your prompt",
-    "sql_history" : "#response_history" // Optional
+    "sql_history" : "#response_history" // Optional,
+    "generate_only": true | false // Optional, default is true
 }
                         </code>
                     </pre>
@@ -39,7 +42,7 @@
                         <code>
 {
     "status" : 0,
-    "sql" : #generated_sql_here,
+    "sql" : "#generated_sql_here",
     "data" : {
         "#col_name_1" : [ #row_1, #row_2, ... #row_n ],
         "#col_name_2" : [ #row_1, #row_2, ... #row_n ],
@@ -54,7 +57,7 @@
                         <code>
 {
     "status" : 0,
-    "sql" : #generated_sql_here
+    "sql" : "#generated_sql_here"
 }
                         </code>
                     </pre>
@@ -63,8 +66,8 @@
                         <code>
 {
     "status" : #status_code,
-    "message" : #error_description
-    "data"? : #generated_query // this is present if the generated sql can't be executed 
+    "message" : "#error_description"
+    "data"? : "#generated_query" // this is present if the generated sql can't be executed 
 }
                         </code>
                     </pre>
@@ -117,6 +120,12 @@
                 <input class="form-control mb-2" type="text" placeholder="Hostname" aria-label="db_hostname" id="db_hostname">
                 <input class="form-control mb-2" type="number" placeholder="Port" aria-label="db_port" id="db_port">
                 <input class="form-control mb-2" type="text" placeholder="Database" aria-label="db_name" id="db_name">
+                <div class="form-check" data-bs-toggle="tooltip" data-bs-title="Checking this will prevent the NLQuery engine to execute the generated SQL.">
+                    <input class="form-check-input" type="checkbox" value="" id="gen_only" checked>
+                    <label class="form-check-label" for="gen_only">
+                        Generate Only
+                    </label>
+                </div>
                 <br>
                 <h5><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-person" viewBox="0 0 16 16">
                     <path d="M11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
@@ -167,8 +176,6 @@
 
 To enhance response quality, your generated SQL history is temporarily stored only in a client-side variable within your browser. This data is not saved in local storage, cookies, or any persistent storage, and it is lost when the page is refreshed or closed.
 
-                        <p>If you do not trust this statement, do not use the application. For local hosting options, contact at erdog@mbasesoftware.com</p>
-                        </small></p>
                         <h6>Liability Disclaimer</h6>
                         <p><small>We are not responsible for any unintended modifications, data loss, or security risks resulting from the use of this application. Users are solely responsible for managing their database permissions and the result of the SQL query that has been executed on your database. Use at your own risk.</small></p>
                     </div>
@@ -298,12 +305,13 @@ To enhance response quality, your generated SQL history is temporarily stored on
         </div>`;
     }
 
-    function showNlqUpdated()
+    function showNlqUpdated(generatedQuery)
     {
         let tabularOutput = document.getElementById("tabular_output");
         tabularOutput.innerHTML = `<div class="alert alert-success w-50" role="alert" style="margin:auto" id="nlquery_feedback">
             NLQuery Success<br>
-            Status: Database updated!
+            Status: Query generated! If generate_only is false, given query is executed on the database:<br><br>
+            <h6>${generatedQuery}</h6>
         </div>`;
     }
 
@@ -319,6 +327,7 @@ To enhance response quality, your generated SQL history is temporarily stored on
         let databaseUsername = document.getElementById("db_username").value;
         let databasePassword = document.getElementById("db_password").value;
         let userQuery = document.getElementById("nl_query").value;
+        const genOnly = document.getElementById("gen_only").checked;
 
         let myArray = Array();
 
@@ -359,7 +368,8 @@ To enhance response quality, your generated SQL history is temporarily stored on
             "db_port" : databasePort,
             "db_username" : databaseUsername,
             "db_password" : databasePassword,
-            "query" : userQuery
+            "query" : userQuery,
+            "generate_only": genOnly
         };
 
         if(document.getElementById("remember_context").checked == true)
@@ -413,7 +423,7 @@ To enhance response quality, your generated SQL history is temporarily stored on
                 }
                 else
                 {
-                    showNlqUpdated();
+                    showNlqUpdated(queryResult.sql);
                 }
             }
         }

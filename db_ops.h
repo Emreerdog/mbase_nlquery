@@ -31,7 +31,7 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables)
     return true;
 }
 
-bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase::string& in_prompt, mbase::Json& out_json, I32& out_status, mbase::string& out_sql)
+bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_genonly, const mbase::string& in_prompt, mbase::Json& out_json, I32& out_status, mbase::string& out_sql)
 {
     NlqProcessor* activeProcessor = NULL;
     if(!in_model->acquire_processor(activeProcessor))
@@ -70,6 +70,13 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, const mbase:
     {
         out_status = NLQ_PROMPT_INVALID;
         return false;
+    }
+
+    if(in_genonly)
+    {
+        out_json["status"] = NLQ_SUCCESS;
+        out_json["sql"] = genSql;
+        return true;
     }
 
     PGresult* resultExec = PQexec(in_connection, genSql.c_str());
