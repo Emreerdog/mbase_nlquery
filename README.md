@@ -31,29 +31,11 @@ Also, an MCP server is available to interact with the NLQuery engine.
 
 ## Platforms
 
-- Windows (Not well-tested)
+- Windows
 - Linux
-- MacOS (Apple Chip, Metal)
+- MacOS
 
-## Installation
-
-> [!IMPORTANT]
-> This installation is for Linux. for Windows and macOS users, refer to compiling from source.
-
-Setting up the MBASE apt repository:
-```bash
-sudo curl -fsSL https://repo.mbasesoftware.com/apt/pgp-key.public -o /etc/apt/keyrings/mbase-apt.public
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/mbase-apt.public] https://repo.mbasesoftware.com/apt/ stable main" | sudo tee /etc/apt/sources.list.d/mbase.list > /dev/null
-sudo apt-get update
-```
-
-Installing the NLQuery:
-
-```bash
-sudo apt-get -y install mbase-nlquery
-```
-
-## Compiling From Source
+## Build
 
 In order to compile from source, you will need the following packages:
 
@@ -77,15 +59,14 @@ There are two CMake configuration parameters user can specify given as:
 Now, we will build the program:
 
 ```bash
-mkdir build
-cd build
-cmake ..
-cmake --build . --config Release -j
+cmake -B build
+cmake --build build --config Release -j
 ```
 
 After the compilation is finished, you can run the program:
 
 ```bash
+cd build
 ./mbase_nlquery
 ```
 
@@ -102,7 +83,6 @@ mbase_nl_query
 ```bash
 mbase_nl_query --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --disable-webui 
 ```
-
 
 ### Printing Help
 

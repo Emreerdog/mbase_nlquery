@@ -28,7 +28,7 @@ void print_usage()
     printf("Options: \n\n");
     printf("--help                            Print usage.\n");
     printf("-v, --version                     Shows program version.\n");
-    printf("--program-path <str>              NLQuery web page and model path (default=./nlquery).\n");
+    printf(mbase::string::from_format("--program-path <str>              NLQuery web page and model path (default=%s).\n", gProgramPath.c_str()).c_str());
     printf("--hostname <str>                  Hostname to listen to (default=\"127.0.0.1\").\n");
     printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 if HTTPS\").\n");
     printf("--ssl-public <str>                SSL public key file.\n");
@@ -215,7 +215,20 @@ void server_thread()
         svr->set_mount_point("/", webPath.c_str());
     }
     svr->Post("/nlquery", nlquery_endpoint);
-    printf("Server started listening...\n");
+    printf("Server started listening.\n\n");
+    mbase::string protocolString = "http://";
+    if(gSSLEnabled)
+    {
+        protocolString = "https://";
+    }
+
+    mbase::string webUrl = protocolString + mbase::string::from_format("%s:%d", gListenHostname.c_str(), gListenPort);
+
+    if(gIsWebui)
+    {    
+        printf("WebUI link: %s\n", webUrl.c_str());
+    }
+    printf("REST API URL: %s/nlquery\n\n", webUrl.c_str());
     svr->listen(gListenHostname.c_str(), gListenPort);
     printf("ERR: Server can't listen! Make sure the hostname and port is valid\n");
     exit(1);
@@ -315,7 +328,7 @@ int main(int argc, char** argv)
             }
             printf("INFO: Model not found at program path\n");
             printf("INFO: Downloading the model from Huggingface: \n");
-            mbase::string shellCommand = "cd $HOME/.local/myapp && curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
+            mbase::string shellCommand = mbase::string::from_format("cd %s && curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf", gProgramPath.c_str());
             system(shellCommand.c_str());
             triedBefore = true;
         }
