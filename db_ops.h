@@ -9,25 +9,77 @@
 
 MBASE_BEGIN
 
+class PostgreSafeConnect {
+public:
+    PostgreSafeConnect(
+        const mbase::string& in_hostname,
+        const I32& in_port,
+        const mbase::string& in_dbname,
+        const mbase::string& in_username,
+        const mbase::string& in_password
+    )
+    {
+        mbase::string outputFormat = mbase::string::from_format("host=%s port=%d dbname=%s user=%s password=%s connect_timeout=2 sslmode=allow", in_hostname.c_str(), in_port, in_dbname.c_str(), in_username.c_str(), in_password.c_str());
+        mPostgreConnection = PQconnectdb(outputFormat.c_str());
+
+        if(PQstatus(mPostgreConnection) == ConnStatusType::CONNECTION_BAD)
+        {
+            if(mPostgreConnection)
+            {
+                PQfinish(mPostgreConnection);
+            }
+        }
+        else
+        {
+            this->bIsConnected = true;
+        }
+    }
+
+    ~PostgreSafeConnect()
+    {
+        if(mPostgreConnection)
+        {
+            PQfinish(mPostgreConnection);
+        }
+    }
+
+    bool isConnected()
+    {
+        return bIsConnected;
+    }
+
+    PGconn* get_connection_ptr()
+    {
+        return mPostgreConnection;
+    }
+private:
+    PGconn* mPostgreConnection = nullptr;
+    bool bIsConnected = false;
+};
+
 bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables)
 {
-    mbase::string getTablesQuery = "SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE' AND c.table_schema = 'public' GROUP BY t.table_name;";
-    PGresult* resultExec = PQexec(in_connection, getTablesQuery.c_str());
-
-    ExecStatusType est = PQresultStatus(resultExec);
-    if(est != ExecStatusType::PGRES_TUPLES_OK)
-    {
-        return false;
-    }
     mbase::string outputTables;
-    int tupleCount = PQntuples(resultExec);
-    for(int i = 0; i < tupleCount; i++)
+    for(mbase::string& schemaName: gProvidedSchemas)
     {
-        outputTables += mbase::string::from_format("%s : %s\n", PQgetvalue(resultExec, i, 0), PQgetvalue(resultExec, i, 1));
+        mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' AND c.table_schema = '%s' GROUP BY t.table_name;", schemaName.c_str(), schemaName.c_str());
+        PGresult* resultExec = PQexec(in_connection, getTablesQuery.c_str());
+    
+        ExecStatusType est = PQresultStatus(resultExec);
+        if(est != ExecStatusType::PGRES_TUPLES_OK)
+        {
+            return false;
+        }
+        
+        int tupleCount = PQntuples(resultExec);
+        for(int i = 0; i < tupleCount; i++)
+        {
+            outputTables += mbase::string::from_format("%s : %s\n", PQgetvalue(resultExec, i, 0), PQgetvalue(resultExec, i, 1));
+        }
+    
+        PQclear(resultExec);    
     }
     out_tables = std::move(outputTables);
-
-    PQclear(resultExec);
     return true;
 }
 
@@ -84,7 +136,6 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_geno
     {
         out_status = NLQ_INTERNAL_SERVER_ERROR;
         out_sql = genSql;
-        PQclear(resultExec);
         return false;
     }
 

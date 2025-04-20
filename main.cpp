@@ -33,6 +33,7 @@ void print_usage()
     printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 if HTTPS\").\n");
     printf("--ssl-public <str>                SSL public key file.\n");
     printf("--ssl-private <str>               SSL private key file.\n");
+    printf("--schema <str>                    Schema name to query from. For multiple schemas, specify this option multiple times (default=\"public\").\n");
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
     printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
     printf("--disable-webui                   Disables webui.\n\n");
@@ -146,10 +147,9 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
 
     if(provider == "postgresql")
     {
-        mbase::string outputFormat = mbase::string::from_format("host=%s port=%d dbname=%s user=%s password=%s connect_timeout=2 sslmode=allow", hostname.c_str(), hostPort, databaseName.c_str(), username.c_str(), password.c_str());
-        PGconn* connPtr = PQconnectdb(outputFormat.c_str());
-
-        if(PQstatus(connPtr) == ConnStatusType::CONNECTION_BAD) // connection bad? monke sad.
+        mbase::PostgreSafeConnect postgreConnector(hostname, hostPort, databaseName, username, password);
+        
+        if(!postgreConnector.isConnected()) // connection bad? monke sad.
         {
             send_error(in_req, in_resp, NLQ_CONNECTION_FAILED);
             return;
@@ -158,7 +158,7 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
         mbase::string tableInformation;
         try
         {
-            if(!mbase::psql_get_all_tables(connPtr, tableInformation))
+            if(!mbase::psql_get_all_tables(postgreConnector.get_connection_ptr(), tableInformation))
             {
                 send_error(in_req, in_resp, NLQ_DB_ERR);
                 return;
@@ -174,7 +174,7 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
         mbase::Json outputJson;
         mbase::I32 outputCode;
         mbase::string generatedSql;
-        if(!mbase::psql_produce_output(connPtr, gGlobalModel, genOnly, formedString, outputJson, outputCode, generatedSql))
+        if(!mbase::psql_produce_output(postgreConnector.get_connection_ptr(), gGlobalModel, genOnly, formedString, outputJson, outputCode, generatedSql))
         {
             send_error(in_req, in_resp, outputCode, generatedSql);
             return;
@@ -229,6 +229,13 @@ void server_thread()
         printf("WebUI link: %s\n", webUrl.c_str());
     }
     printf("REST API URL: %s/nlquery\n\n", webUrl.c_str());
+
+    printf("Using schemas: \n");
+    for(mbase::string& schemaNames : gProvidedSchemas)
+    {
+        printf("- %s\n", schemaNames.c_str());
+    }
+
     svr->listen(gListenHostname.c_str(), gListenPort);
     printf("ERR: Server can't listen! Make sure the hostname and port is valid\n");
     exit(1);
@@ -275,6 +282,13 @@ int main(int argc, char** argv)
         {
             mbase::argument_get<mbase::string>::value(i, argc, argv, gSSLPrivatePath);
         }
+        
+        else if(argumentString == "--schema")
+        {
+            mbase::string schemaInfo;
+            mbase::argument_get<mbase::string>::value(i, argc, argv, schemaInfo);
+            gProvidedSchemas.insert(schemaInfo);
+        }
 
         else if(argumentString == "--user-count")
         {
@@ -310,6 +324,11 @@ int main(int argc, char** argv)
     if(gSSLPublicPath.size() || gSSLPrivatePath.size())
     {
         gSSLEnabled = true;
+    }
+
+    if(!gProvidedSchemas.size())
+    {
+        gProvidedSchemas.insert("public");
     }
 
     gModelPath = gProgramPath + "/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
