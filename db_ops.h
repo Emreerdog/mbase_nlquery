@@ -28,6 +28,7 @@ public:
             {
                 PQfinish(mPostgreConnection);
             }
+            mPostgreConnection = nullptr;
         }
         else
         {
@@ -57,10 +58,39 @@ private:
     bool bIsConnected = false;
 };
 
-bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables)
+bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase::unordered_map<mbase::string, mbase::string>& out_schema_map)
 {
+    if(!gProvidedSchemas.size())
+    {
+        // Retrieve all schemas from the database
+        mbase::string getSchemasQuery = "SELECT nspname FROM pg_namespace";
+        PGresult* resultExec = PQexec(in_connection, getSchemasQuery.c_str());
+    
+        ExecStatusType est = PQresultStatus(resultExec);
+        if(est != ExecStatusType::PGRES_TUPLES_OK)
+        {
+            if(resultExec)
+            {
+                PQclear(resultExec);
+            }
+        }
+        else
+        {
+            int tupleCount = PQntuples(resultExec);
+            for(int i = 0; i < tupleCount; i++)
+            {
+                mbase::string currentSchemaName(PQgetvalue(resultExec, i, 0));
+                if(currentSchemaName == "information_schema" || currentSchemaName == "pg_catalog" || currentSchemaName == "pg_toast")
+                {
+                    continue;
+                }
+                gProvidedSchemas.insert(currentSchemaName);
+            }
+        }
+    }
+
     mbase::string outputTables;
-    for(mbase::string& schemaName: gProvidedSchemas)
+    for(const mbase::string& schemaName: gProvidedSchemas)
     {
         mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' AND c.table_schema = '%s' GROUP BY t.table_name;", schemaName.c_str(), schemaName.c_str());
         PGresult* resultExec = PQexec(in_connection, getTablesQuery.c_str());
@@ -68,13 +98,34 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables)
         ExecStatusType est = PQresultStatus(resultExec);
         if(est != ExecStatusType::PGRES_TUPLES_OK)
         {
+            if(resultExec)
+            {
+                PQclear(resultExec);
+            }
             return false;
         }
         
         int tupleCount = PQntuples(resultExec);
         for(int i = 0; i < tupleCount; i++)
         {
-            outputTables += mbase::string::from_format("%s : %s\n", PQgetvalue(resultExec, i, 0), PQgetvalue(resultExec, i, 1));
+            mbase::string tableName = PQgetvalue(resultExec, i, 0);
+            mbase::string tableMetaData = PQgetvalue(resultExec, i, 1);
+            mbase::Json metadataJsonArray = mbase::Json::parse(tableMetaData).second;
+
+            mbase::string tableMetaTotalString;
+
+            for(mbase::Json& metaItem : metadataJsonArray.getArray())
+            {
+                tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ',';
+            }
+            
+            if(tableMetaTotalString.size())
+            {
+                tableMetaTotalString.pop_back(); // Remove the last comma
+                gSchemaTableMap[schemaName] += tableName + '=' + tableMetaTotalString + '\n';
+            }
+
+            outputTables += mbase::string::from_format("%s : %s\n", tableName.c_str(), tableMetaData.c_str());
         }
     
         PQclear(resultExec);    
@@ -217,6 +268,16 @@ mbase::string prepare_prompt(
     mbase::string nlQuerySection = "<NL_QUERY_BEGIN>\n" + in_nlquery + "\n<NL_QUERY_END>\n";
 
     return providerSection + tableInfoSection + sqlHistorySection + nlQuerySection;
+}
+
+mbase::string prepare_prompt_static(
+    const mbase::string& in_sql_history,
+    const mbase::string& in_nlquery
+)
+{
+    mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
+    mbase::string nlQuerySection = "<NLQUERY_BEGIN>\n" + in_nlquery + "\n<NLQUERY_END>\n";
+    return sqlHistorySection + nlQuerySection;
 }
 
 MBASE_END

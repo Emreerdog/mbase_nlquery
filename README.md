@@ -101,12 +101,8 @@ mbase_nl_query --help
 
 ```js
 {
-    "db_provider" : "PostgreSQL", // case-insensitive
-    "db_hostname" : "#host_here",
-    "db_port" : #port,
-    "db_name" : "#database",
-    "db_username" : "#username",
-    "db_password" : "#password",
+    "db_username" : "#username", // Optional
+    "db_password" : "#password", // Optional
     "query" : "#Your prompt",
     "sql_history" : "#response_history", // Optional
     "generate_only": true | false // Optional, default is true

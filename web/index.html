@@ -12,95 +12,12 @@
         <div class="row">
             <div class="col-md-4">
                 <div class="text-center">
-                    <h5 data-bs-toggle="collapse" data-bs-target="#apiCollapse" aria-expanded="false" aria-controls="apiCollapse">Click for Single API Endpoint</h5>
+                    <h5 data-bs-toggle="collapse" data-bs-target="#apiCollapse" aria-expanded="false" aria-controls="apiCollapse">Click for prompt history</h5>
                 </div>
                 <div class="collapse mx-5" id="apiCollapse">     
-                    <div class="alert alert-success" role="alert">
-                        <small>You can locally run and host NLQuery API for your own environment. Contact for details erdog@mbasesoftware.com</small>
-                    </div>               
-                    <h6>Endpoint url: /nlquery</h6>
-                    <h6>Content-Type: application/json</h6>
-                    <h6>Method: POST</h6>
-                    <h6>Request data:</h6>
-                    <pre>
-                        <code>
-{
-    "db_provider" : "PostgreSQL",
-    "db_hostname" : "#host_here",
-    "db_port" : #port,
-    "db_name" : "#database",
-    "db_username" : "#username",
-    "db_password" : "#password",
-    "query" : "#Your prompt",
-    "sql_history" : "#response_history" // Optional,
-    "generate_only": true | false // Optional, default is true
-}
-                        </code>
-                    </pre>
-                    <h6>Response data on success (Reading data):</h6>
-                    <pre>
-                        <code>
-{
-    "status" : 0,
-    "sql" : "#generated_sql_here",
-    "data" : {
-        "#col_name_1" : [ #row_1, #row_2, ... #row_n ],
-        "#col_name_2" : [ #row_1, #row_2, ... #row_n ],
-        ...
-        "#col_name_n" : [ #row_1, #row_2, ... #row_n ]
-    }
-}
-                        </code>
-                    </pre>
-                    <h6>Response data on success (Modifying the DB):</h6>
-                    <pre>
-                        <code>
-{
-    "status" : 0,
-    "sql" : "#generated_sql_here"
-}
-                        </code>
-                    </pre>
-                    <h6>Response data on fail:</h6>
-                    <pre>
-                        <code>
-{
-    "status" : #status_code,
-    "message" : "#error_description"
-    "data"? : "#generated_query" // this is present if the generated sql can't be executed 
-}
-                        </code>
-                    </pre>
-                    <h6>Status codes:</h6>
-                    <ul>
-                        <li>
-                            0: Success,
-                        </li>
-                        <li>
-                            1: Engine overloaded.
-                        </li>
-                        <li>
-                            2: DB Connection failed.
-                        </li>
-                        <li>
-                            3: Prompt invalid.
-                        </li>
-                        <li>
-                            4: Internal server error.
-                        </li>
-                        <li>
-                            5: Invalid payload.
-                        </li>
-                        <li>
-                            6: Provider not supported.
-                        </li>
-                        <li>
-                            7: DB Failed to execute generated query.
-                        </li>
-                        <li>
-                            8: Input too long.
-                        </li>
-                    </ul>
+                    <div class="card" id="chatSection">
+                        
+                    </div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -110,23 +27,7 @@
                 <div class="alert alert-danger" role="alert" id="input_feedback" style="display: none;">
                     A simple danger alert with an example link. Give it a click if you like.
                 </div>
-                <h5><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-database" viewBox="0 0 16 16">
-                    <path d="M4.318 2.687C5.234 2.271 6.536 2 8 2s2.766.27 3.682.687C12.644 3.125 13 3.627 13 4c0 .374-.356.875-1.318 1.313C10.766 5.729 9.464 6 8 6s-2.766-.27-3.682-.687C3.356 4.875 3 4.373 3 4c0-.374.356-.875 1.318-1.313M13 5.698V7c0 .374-.356.875-1.318 1.313C10.766 8.729 9.464 9 8 9s-2.766-.27-3.682-.687C3.356 7.875 3 7.373 3 7V5.698c.271.202.58.378.904.525C4.978 6.711 6.427 7 8 7s3.022-.289 4.096-.777A5 5 0 0 0 13 5.698M14 4c0-1.007-.875-1.755-1.904-2.223C11.022 1.289 9.573 1 8 1s-3.022.289-4.096.777C2.875 2.245 2 2.993 2 4v9c0 1.007.875 1.755 1.904 2.223C4.978 15.71 6.427 16 8 16s3.022-.289 4.096-.777C13.125 14.755 14 14.007 14 13zm-1 4.698V10c0 .374-.356.875-1.318 1.313C10.766 11.729 9.464 12 8 12s-2.766-.27-3.682-.687C3.356 10.875 3 10.373 3 10V8.698c.271.202.58.378.904.525C4.978 9.71 6.427 10 8 10s3.022-.289 4.096-.777A5 5 0 0 0 13 8.698m0 3V13c0 .374-.356.875-1.318 1.313C10.766 14.729 9.464 15 8 15s-2.766-.27-3.682-.687C3.356 13.875 3 13.373 3 13v-1.302c.271.202.58.378.904.525C4.978 12.71 6.427 13 8 13s3.022-.289 4.096-.777c.324-.147.633-.323.904-.525"/>
-                </svg> Database Information</h5>
-                <select class="form-select mb-2" aria-label="db_provider" id="db_provider">
-                    <option selected>DB Provider</option>
-                    <option value="PostgreSQL">PostgreSQL</option>
-                </select>
-                <input class="form-control mb-2" type="text" placeholder="Hostname" aria-label="db_hostname" id="db_hostname">
-                <input class="form-control mb-2" type="number" placeholder="Port" aria-label="db_port" id="db_port">
-                <input class="form-control mb-2" type="text" placeholder="Database" aria-label="db_name" id="db_name">
-                <div class="form-check" data-bs-toggle="tooltip" data-bs-title="Checking this will prevent the NLQuery engine to execute the generated SQL.">
-                    <input class="form-check-input" type="checkbox" value="" id="gen_only" checked>
-                    <label class="form-check-label" for="gen_only">
-                        Generate Only
-                    </label>
-                </div>
-                <br>
+                
                 <h5><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-person" viewBox="0 0 16 16">
                     <path d="M11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
                     <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2v9.255S12 12 8 12s-5 1.755-5 1.755V2a1 1 0 0 1 1-1h5.5z"/>
@@ -141,14 +42,22 @@
                     <textarea class="form-control" placeholder="Prompt here..." id="nl_query" style="height: 100px" onkeyup="writingQuery(this)"></textarea>
                     <label for="nl_query">Prompt</label>  
                 </div>
+                <div class="form-check" data-bs-toggle="tooltip" data-bs-title="Checking this will prevent the NLQuery engine to execute the generated SQL.">
+                    <input class="form-check-input" type="checkbox" value="" id="gen_only" checked>
+                    <label class="form-check-label" for="gen_only">
+                        Generate Only
+                    </label>
+                </div>
+                <div class="form-check" data-bs-toggle="tooltip" data-bs-title="Checking this will supply the NLQuery engine with generated SQL history. May improve quality.">
+                    <input class="form-check-input" type="checkbox" value="" id="remember_context">
+                    <label class="form-check-label" for="remember_context">
+                        Remember Context
+                    </label>
+                </div>
+
                 <div class="d-flex mt-2">
                     <div class="p-2">
-                        <div class="form-check" data-bs-toggle="tooltip" data-bs-title="Checking this will supply the NLQuery engine with generated SQL history. May improve quality.">
-                            <input class="form-check-input" type="checkbox" value="" id="remember_context">
-                            <label class="form-check-label" for="remember_context">
-                                Remember Context
-                            </label>
-                        </div>
+                        
                     </div>
                     <div class="ms-auto p-2">
                         <button class="btn btn-default disabled" onclick="sendQueryRequest()" id="sendQueryButton">
@@ -320,10 +229,6 @@ To enhance response quality, your generated SQL history is temporarily stored on
         let inputFeedbackContainer = document.getElementById("input_feedback");
         inputFeedbackContainer.style.display = "none";
 
-        let databaseProvider = document.getElementById("db_provider").value;
-        let databaseName = document.getElementById("db_name").value;
-        let databaseHost = document.getElementById("db_hostname").value;
-        let databasePort = Number(document.getElementById("db_port").value);
         let databaseUsername = document.getElementById("db_username").value;
         let databasePassword = document.getElementById("db_password").value;
         let userQuery = document.getElementById("nl_query").value;
@@ -331,46 +236,27 @@ To enhance response quality, your generated SQL history is temporarily stored on
 
         let myArray = Array();
 
-        if(!databaseProvider.length)
-        {
-            showInputFeedback("DB Provider must be set. Valid values are (PostgreSQL | MySQL)");
-            return;
-        }
-
-        if(!databaseName.length)
-        {
-            showInputFeedback("Database name must be set.");
-            return;
-        }
-
-        if(!databaseHost.length)
-        {
-            showInputFeedback("Database host must be set.");
-            return;
-        }
-
-        if(databasePort <= 0)
-        {
-            showInputFeedback("Database port value invalid.");
-            return;
-        }
-
-        if(!databaseUsername.length)
-        {
-            showInputFeedback("Database username invalid.");
-            return;
-        }
-
         let jsonToSend = {
-            "db_provider" : databaseProvider,
-            "db_name" : databaseName,
-            "db_hostname" : databaseHost,
-            "db_port" : databasePort,
-            "db_username" : databaseUsername,
-            "db_password" : databasePassword,
             "query" : userQuery,
             "generate_only": genOnly
         };
+
+        let chatHistorySection = document.getElementById("chatSection");
+        chatHistorySection.innerHTML += `
+            <div class="card-body">
+                ${userQuery}
+            </div>
+        `;
+
+        if(databaseUsername.length)
+        {
+            jsonToSend["db_username"] = databaseUsername;
+        }
+
+        if(databasePassword.length)
+        {
+            jsonToSend["db_password"] = databasePassword;
+        }
 
         if(document.getElementById("remember_context").checked == true)
         {

@@ -5,6 +5,7 @@
 #include <mbase/inference/inf_t2t_model.h>
 #include <mbase/inference/inf_t2t_processor.h>
 #include <mbase/inference/inf_t2t_client.h>
+#include <mbase/inference/inf_chat_templates.h>
 #include "global_state.h"
 
 MBASE_BEGIN
@@ -94,12 +95,10 @@ public:
     GENERIC on_initialize() override
     {
         mbase::inf_text_token_vector tokVec;
-        mbase::GgufMetaConfigurator metaConfigurator(mbase::from_utf8(gModelPath));
 
         this->set_inference_client(&myClient);
-        metaConfigurator.get_key("nlquery.tokens", tokVec);
         printf("INFO: Initializing (%d) processor...\n", gProcCounter);
-        this->execute_input_sync(tokVec, true);
+        this->execute_input_sync(gSystemPromptTokens, true);
         printf("INFO: Processor (%d) initialized\n", gProcCounter);
         gProcCounter++;
         mIsPromptCached = true;
@@ -159,6 +158,79 @@ public:
 
 	GENERIC on_initialize() override
     {
+        mbase::GgufMetaConfigurator metaConfigurator(mbase::from_utf8(gModelPath));
+        if(!metaConfigurator.has_kv_key("nlquery.tokens"))
+        {
+            printf("ERR: Embedded system prompt is missing!\n");
+            printf("INFO: Make sure you cook the model with nlquery prompt cooker\n");
+            exit(1);
+        }
+
+        metaConfigurator.get_key("nlquery.tokens", gSystemPromptTokens);
+
+        mbase::string dataSectionString = "<SCHEMA_LIST_BEGIN>\n";
+        for(auto& n : gSchemaTableMap)
+        {
+            dataSectionString += n.first + '\n';
+        }
+        dataSectionString += "<DB_SOURCE_BEGIN>\npostgresql\n<DB_SOURCE_END>\n<SCHEMA_LIST_END>\n";
+        for(auto& n : gSchemaTableMap)
+        {
+            mbase::string tableInfoString = mbase::string::from_format("<%s:TABLE_INFO_BEGIN>%s<%s:TABLE_INFO_END>\n", n.first.c_str(), n.second.c_str(), n.first.c_str());
+            dataSectionString += tableInfoString;
+        }
+
+        if(gHintFilePath.size())
+        {
+            mbase::string hintText = mbase::read_file_as_string(gHintFilePath);
+            dataSectionString += hintText + '\n';
+        }
+
+        mbase::string systemStart;
+        mbase::string assistantStart;
+        mbase::string userStart;
+        mbase::string systemEnd;
+        mbase::string assistantEnd;
+        mbase::string userEnd;
+        mbase::tokenizer_align_instruct_template(this->get_architecture(), systemStart, assistantStart, userStart, systemEnd, assistantEnd, userEnd);
+
+        dataSectionString += systemEnd;
+        
+        mbase::inf_text_token_vector systemStartTokens;
+        mbase::inf_text_token_vector dataSectionTokens;
+
+        if(this->tokenize_input(systemStart.c_str(), systemStart.size(), systemStartTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
+        {
+            printf("ERR: Unable to tokenize the system start section of the prompt!\n");
+            printf("INFO: This should never happen, contact with the provider\n");
+        }
+
+        if(this->tokenize_input(dataSectionString.c_str(), dataSectionString.size(), dataSectionTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
+        {
+            printf("ERR: Unable to tokenize the data section of the prompt!\n");
+            printf("INFO: This should never happen, contact with the provider\n");
+        }
+
+        mbase::inf_text_token_vector totalSystemPromptTokens;
+
+        for(const inf_text_token& tmpToken : gSystemPromptTokens)
+        {
+            totalSystemPromptTokens.push_back(tmpToken);
+        }
+
+        for(const inf_text_token& tmpToken : systemStartTokens)
+        {
+            totalSystemPromptTokens.push_back(tmpToken);
+        }
+
+        for(const inf_text_token& tmpToken : dataSectionTokens)
+        {
+            totalSystemPromptTokens.push_back(tmpToken);
+        }
+
+        gSystemPromptTokens = totalSystemPromptTokens;
+
+        std::cout << "Total prompt length: " << gSystemPromptTokens.size() << std::endl;
         for(I32 i = 0; i < mProcessorCount; i++)
         {
             NlqProcessor* newProcessor = new NlqProcessor; // Leak is fine, program will 24/7 run anyways
@@ -167,8 +239,8 @@ public:
 
             this->register_context_process(
                 newProcessor,
-                4096,
-                2048,
+                gSystemPromptTokens.size() + 2048,
+                64,
                 16,
                 16,
                 true,

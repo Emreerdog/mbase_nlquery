@@ -22,8 +22,8 @@ inline mbase::unordered_map<mbase::string, mbase::string> gSchemaTableMap;
 inline mbase::string gListenHostname = "127.0.0.1";
 inline mbase::string gSSLPublicPath;
 inline mbase::string gSSLPrivatePath;
-inline mbase::string gProgramPath = "@MBASE_NLQUERY_PROGRAM_PATH@";
-inline mbase::string gModelPath = "@MBASE_NLQUERY_PROGRAM_PATH@/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
+inline mbase::string gProgramPath = "/Users/erdog/Desktop/mbase_nlquery/build/nlquery";
+inline mbase::string gModelPath = "/Users/erdog/Desktop/mbase_nlquery/build/nlquery/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf";
 inline mbase::string gHintFilePath;
 inline mbase::inf_text_token_vector gSystemPromptTokens;
 
