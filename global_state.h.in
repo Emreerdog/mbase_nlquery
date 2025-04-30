@@ -13,6 +13,7 @@ MBASE_END
 inline mbase::I32 gMaxRows = 1000;
 inline mbase::I32 gUserCount = 2;
 inline mbase::I32 gListenPort = 8080;
+inline mbase::I32 gNLayers = 999;
 inline bool gIsWebui = true;
 inline bool gSSLEnabled = false;
 inline mbase::NlqModel* gGlobalModel = nullptr;

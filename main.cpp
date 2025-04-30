@@ -26,7 +26,7 @@ void print_usage()
     printf("========================================\n\n");
     printf("Usage: mbase_nlquery *[<option> [<value>]]\n");
     printf("Options: \n\n");
-    printf("--help                            Print usage.\n");
+    printf("-h, --help                        Print usage.\n");
     printf("-v, --version                     Shows program version.\n");
     printf(mbase::string::from_format("--program-path <str>              NLQuery web page path (default=%s).\n", gProgramPath.c_str()).c_str());
     printf(mbase::string::from_format("--model-path <str>                NLQuery model path (default=%s).\n", gModelPath.c_str()).c_str());
@@ -44,6 +44,7 @@ void print_usage()
     printf("--db-name <str>                   Name of the database.\n");
     printf("--db-username <str>               Username to use for accessing to the database.\n");
     printf("--db-password <str>               Password of the database username.\n");
+    printf("--gpu-layers <int>                Number of layers to be offloaded to GPU (default=999).\n\n");
 }
 
 void send_error(const httplib::Request& in_req, httplib::Response& in_resp, int in_status_code, const mbase::string& in_data = "")
@@ -254,6 +255,11 @@ void server_thread()
 
 int main(int argc, char** argv)
 {       
+    if(argc < 2)
+    {
+        print_usage();
+        exit(0);
+    }
     for(int i = 0; i < argc; i++)
     {
         mbase::string argumentString = argv[i];
@@ -263,7 +269,7 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        else if(argumentString == "--help")
+        else if(argumentString == "-h" || argumentString == "--help")
         {
             print_usage();
             return 0;
@@ -350,6 +356,11 @@ int main(int argc, char** argv)
         {
             mbase::argument_get<mbase::string>::value(i, argc, argv, gDBPassword);
         }
+
+        else if(argumentString == "--gpu-layers")
+        {
+            mbase::argument_get<mbase::I32>::value(i, argc, argv, gNLayers);
+        }
     }
 
     if(!gUserCount)
@@ -434,7 +445,8 @@ int main(int argc, char** argv)
     }
 
     mbase::NlqModel myModel(gUserCount);
-    if(myModel.initialize_model_sync(mbase::from_utf8(gModelPath), 9999999, 0) == mbase::NlqModel::flags::INF_MODEL_ERR_CANT_LOAD_MODEL)
+    
+    if(myModel.initialize_model_ex_sync(mbase::from_utf8(gModelPath), 9999999, gNLayers, true, true, mbase::inf_query_devices()) != mbase::NlqModel::flags::INF_MODEL_INFO_UPDATE_REQUIRED)
     {
         printf("ERR: Failed to load the model\n");
         exit(1);

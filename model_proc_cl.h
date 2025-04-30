@@ -82,7 +82,7 @@ public:
     }
 private:
     mbase::string generatedQuery;
-    bool isProcessing;
+    bool isProcessing = false;
 };
 
 class NlqProcessor : public InfProcessorTextToText {
@@ -213,12 +213,12 @@ public:
 
         mbase::inf_text_token_vector totalSystemPromptTokens;
 
-        for(const inf_text_token& tmpToken : gSystemPromptTokens)
+        for(const inf_text_token& tmpToken : systemStartTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
 
-        for(const inf_text_token& tmpToken : systemStartTokens)
+        for(const inf_text_token& tmpToken : gSystemPromptTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
@@ -240,7 +240,7 @@ public:
             this->register_context_process(
                 newProcessor,
                 gSystemPromptTokens.size() + 2048,
-                64,
+                512,
                 16,
                 16,
                 true,
