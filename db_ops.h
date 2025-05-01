@@ -169,10 +169,21 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_geno
     }
     mbase::string genSql = clientPtr->get_generated_query();
     in_model->release_processor(activeProcessor);
-    if(genSql == "NLQ_INV")
+    if(genSql.contains("NLQ_INV"))
     {
         out_status = NLQ_PROMPT_INVALID;
         return false;
+    }
+
+    if(genSql.size() > 9)
+    {
+        // ```sql``` this is 9 characters
+        mbase::string markdownString(genSql.begin(), genSql.begin() + 6);
+        if(markdownString == "```sql")
+        {
+            // trim the ```sql``` part
+            genSql = mbase::string(genSql.begin() + 6, genSql.end() - 3);
+        }
     }
 
     if(in_genonly)

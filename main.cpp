@@ -443,7 +443,7 @@ int main(int argc, char** argv)
             break;
         }
     }
-
+ 
     mbase::NlqModel myModel(gUserCount);
     
     if(myModel.initialize_model_ex_sync(mbase::from_utf8(gModelPath), 9999999, gNLayers, true, true, mbase::inf_query_devices()) != mbase::NlqModel::flags::INF_MODEL_INFO_UPDATE_REQUIRED)
