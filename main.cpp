@@ -233,7 +233,7 @@ void server_thread()
         svr->set_mount_point("/", webPath.c_str());
     }
     svr->Post("/nlquery", nlquery_endpoint);
-    printf("Server started listening.\n\n");
+    printf("\nServer started listening.\n\n");
     mbase::string protocolString = "http://";
     if(gSSLEnabled)
     {
@@ -410,7 +410,7 @@ int main(int argc, char** argv)
         printf("FATAL: Unable to retrieve schema information from the database\n");
         return 1;
     }
-    printf("INFO: Schema information succesfully retrieved!\n");
+    printf("SUCCESS: Schema information succesfully retrieved!\n\n");
         
     bool triedBefore = false;
 
@@ -445,12 +445,24 @@ int main(int argc, char** argv)
     }
  
     mbase::NlqModel myModel(gUserCount);
-    
-    if(myModel.initialize_model_ex_sync(mbase::from_utf8(gModelPath), 9999999, gNLayers, true, true, mbase::inf_query_devices()) != mbase::NlqModel::flags::INF_MODEL_INFO_UPDATE_REQUIRED)
+
+    if(myModel.initialize_model_ex(mbase::from_utf8(gModelPath), 9999999, gNLayers, true, true, mbase::inf_query_devices()) != mbase::NlqModel::flags::INF_MODEL_INFO_INITIALIZING_MODEL)
     {
-        printf("ERR: Failed to load the model\n");
+        printf("ERR: Failed to start model initialization\n");
         exit(1);
     }
+
+    mbase::vector<char> loadingCharacters = {'\\', '|', '-', '/'};
+    while(myModel.signal_initializing())
+    {
+        for(char& n : loadingCharacters)
+        {
+            fflush(stdout);
+            printf("\rSUCCESS: Initializing the model %c", n);
+            mbase::sleep(150);
+        }
+    }
+    printf("\n");
     myModel.update();
 
     gGlobalModel = &myModel;

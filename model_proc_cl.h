@@ -12,6 +12,10 @@ MBASE_BEGIN
 
 I32 gProcCounter = 1;
 
+class NlqClient;
+class NlqProcessor;
+class NlqModel;
+
 class NlqClient : public InfClientTextToText {
 public:
     bool is_processing() const
@@ -38,6 +42,7 @@ public:
     {
         if(out_is_kv_locked)
         {
+            gLoadedProcessorCounter++;
             isProcessing = false;
         }
         else
@@ -87,21 +92,13 @@ private:
 
 class NlqProcessor : public InfProcessorTextToText {
 public:
-    bool is_prompt_cached() const
-    {
-        return mIsPromptCached;
-    }
 
     GENERIC on_initialize() override
     {
         mbase::inf_text_token_vector tokVec;
 
         this->set_inference_client(&myClient);
-        printf("INFO: Initializing (%d) processor...\n", gProcCounter);
-        this->execute_input_sync(gSystemPromptTokens, true);
-        printf("INFO: Processor (%d) initialized\n", gProcCounter);
-        gProcCounter++;
-        mIsPromptCached = true;
+        this->execute_input(gSystemPromptTokens, true);
     }
 
 	GENERIC on_destroy() override
@@ -117,7 +114,6 @@ public:
 
 private:
     NlqClient myClient;
-    bool mIsPromptCached;
 };
 
 class NlqModel : public InfModelTextToText {
@@ -128,26 +124,24 @@ public:
 
     GENERIC wait_prompt_caching()
     {
+        mbase::vector<char> loadingCharacters = {'\\', '|', '-', '/'};
+        
         while(1)
         {
             this->update();
-            mbase::sleep(2);
-            bool allPromptsCached = true;
-            for(mbase::vector<NlqProcessor*>::iterator It = mAvailableProcessors.begin(); It != mAvailableProcessors.end(); It++)
+            for(char& n : loadingCharacters)
             {
-                NlqProcessor* tmpProcessor = *It;
-                if(!tmpProcessor->is_prompt_cached())
-                {
-                    allPromptsCached = false;
-                    break;
-                }
+                fflush(stdout);
+                printf("\rINFO: KV-Caching the database schema information %c", n);
+                mbase::sleep(150);
             }
-
-            if(allPromptsCached)
+            if(gLoadedProcessorCounter == mProcessorCount)
             {
-                return;
+                break;
             }
         }
+        printf("\n");
+        printf("SUCCESS: Processor KV-Caching is complete!\n");
     }
 
     GENERIC on_initialize_fail(init_fail_code out_fail_code) override
@@ -158,11 +152,12 @@ public:
 
 	GENERIC on_initialize() override
     {
+        printf("SUCCESS: Model is successfully initialized!\n\n");
         mbase::GgufMetaConfigurator metaConfigurator(mbase::from_utf8(gModelPath));
+        printf("INFO: Reading model NLQuery configuration...\n");
         if(!metaConfigurator.has_kv_key("nlquery.tokens"))
         {
-            printf("ERR: Embedded system prompt is missing!\n");
-            printf("INFO: Make sure you cook the model with nlquery prompt cooker\n");
+            printf("ERR: NLQuery configuration is missing! This may happen if the provided model is not configured properly for NLQuery\n");
             exit(1);
         }
 
@@ -182,9 +177,12 @@ public:
 
         if(gHintFilePath.size())
         {
+            printf("INFO: Hint file %s applied.\n", gHintFilePath.c_str());
             mbase::string hintText = mbase::read_file_as_string(gHintFilePath);
             dataSectionString += hintText + '\n';
         }
+
+        printf("SUCCESS: NLQuery configuration read!\n");
 
         mbase::string systemStart;
         mbase::string assistantStart;
@@ -201,13 +199,13 @@ public:
 
         if(this->tokenize_input(systemStart.c_str(), systemStart.size(), systemStartTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
         {
-            printf("ERR: Unable to tokenize the system start section of the prompt!\n");
+            printf("ERR: NLQuery configuration is corrupted!\n");
             printf("INFO: This should never happen, contact with the provider\n");
         }
 
         if(this->tokenize_input(dataSectionString.c_str(), dataSectionString.size(), dataSectionTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
         {
-            printf("ERR: Unable to tokenize the data section of the prompt!\n");
+            printf("ERR: NLQuery configuration is corrupted!\n");
             printf("INFO: This should never happen, contact with the provider\n");
         }
 
@@ -230,7 +228,8 @@ public:
 
         gSystemPromptTokens = totalSystemPromptTokens;
 
-        std::cout << "Total prompt length: " << gSystemPromptTokens.size() << std::endl;
+        printf("SUCCESS: NLQuery configuration successfully applied!\n");
+        printf("INFO: Calculated context size is: %d\n", gSystemPromptTokens.size());
         for(I32 i = 0; i < mProcessorCount; i++)
         {
             NlqProcessor* newProcessor = new NlqProcessor; // Leak is fine, program will 24/7 run anyways
@@ -248,7 +247,7 @@ public:
             );
             mAvailableProcessors.push_back(newProcessor);
         }
-        printf("Initializing All processors\n");
+        
         this->wait_prompt_caching();
         // Initialize all processors
     }
