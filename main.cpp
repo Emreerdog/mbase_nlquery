@@ -145,9 +145,17 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
     mbase::string query = givenJson["query"].getString();
     mbase::string sqlHistory;
     bool genOnly = true;
-    if(givenJson["sql_history"].isString())
+    if(givenJson["sql_history"].isArray())
     {
-        sqlHistory = givenJson["sql_history"].getString();
+        mbase::I32 historyCounter = 1;
+        for(mbase::Json& sqlHistoryItem : givenJson["sql_history"].getArray())
+        {
+            if(sqlHistoryItem["query_old"].isString() && sqlHistoryItem["sql"].isString())
+            {
+                sqlHistory +=  mbase::string::from_format("NLQ-%d: ", historyCounter) + sqlHistoryItem["query_old"].getString() + '=' + sqlHistoryItem["sql"].getString() + '\n';
+                historyCounter++;
+            }
+        }
     }
 
     if(givenJson["generate_only"].isBool())

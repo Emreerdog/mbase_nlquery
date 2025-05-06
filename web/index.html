@@ -231,7 +231,7 @@ To enhance response quality, your generated SQL history is temporarily stored on
 
         let databaseUsername = document.getElementById("db_username").value;
         let databasePassword = document.getElementById("db_password").value;
-        let userQuery = document.getElementById("nl_query").value;
+        const userQuery = document.getElementById("nl_query").value;
         const genOnly = document.getElementById("gen_only").checked;
 
         let myArray = Array();
@@ -260,12 +260,7 @@ To enhance response quality, your generated SQL history is temporarily stored on
 
         if(document.getElementById("remember_context").checked == true)
         {
-            let sqlHistoryString = "";
-            for(let sqlHistoryCurrent of sqlHistory)
-            {
-                sqlHistoryString += sqlHistoryCurrent;
-            }
-            jsonToSend["sql_history"] = sqlHistoryString;
+            jsonToSend["sql_history"] = sqlHistory;
         }
 
         let tabularOutput = document.getElementById("tabular_output");
@@ -295,7 +290,12 @@ To enhance response quality, your generated SQL history is temporarily stored on
                     sqlHistory.shift();
                 }
                 
-                sqlHistory.push(queryResult.sql);
+                const sqlHistoryObject = {
+                    "query_old" : userQuery,
+                    "sql" : queryResult.sql
+                };
+
+                sqlHistory.push(sqlHistoryObject);
 
                 if(queryResult.status == 9)
                 {
