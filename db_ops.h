@@ -92,7 +92,8 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
     mbase::string outputTables;
     for(const mbase::string& schemaName: gProvidedSchemas)
     {
-        mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' AND c.table_schema = '%s' GROUP BY t.table_name;", schemaName.c_str(), schemaName.c_str());
+        //mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' AND c.table_schema = '%s' GROUP BY t.table_name;", schemaName.c_str(), schemaName.c_str());
+        mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type, 'constraint_type', tc.constraint_type, 'referenced_table', ccu.table_name, 'referenced_column', ccu.column_name ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name AND t.table_schema = c.table_schema LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name AND c.table_schema = kcu.table_schema LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_type = 'FOREIGN KEY' AND tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' GROUP BY t.table_name;", schemaName.c_str());
         PGresult* resultExec = PQexec(in_connection, getTablesQuery.c_str());
     
         ExecStatusType est = PQresultStatus(resultExec);
@@ -116,7 +117,26 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
 
             for(mbase::Json& metaItem : metadataJsonArray.getArray())
             {
-                tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ',';
+                mbase::string constType = "null";
+                mbase::string refColumn = "null";
+                mbase::string refTable = "null";
+
+                if(metaItem["constraint_type"].isString())
+                {
+                    constType = metaItem["constraint_type"].getString();
+                }
+
+                if(metaItem["referenced_table"].isString())
+                {
+                    refTable = metaItem["referenced_table"].getString();
+                }
+
+                if(metaItem["referenced_column"].isString())
+                {
+                    refTable = metaItem["referenced_column"].getString();
+                }
+
+                tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ';' + constType + ';' + refTable + ";" + refColumn + ',';
             }
             
             if(tableMetaTotalString.size())
@@ -124,12 +144,12 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
                 tableMetaTotalString.pop_back(); // Remove the last comma
                 gSchemaTableMap[schemaName] += tableName + '=' + tableMetaTotalString + '\n';
             }
-
             outputTables += mbase::string::from_format("%s : %s\n", tableName.c_str(), tableMetaData.c_str());
         }
     
         PQclear(resultExec);    
     }
+    
     out_tables = std::move(outputTables);
     return true;
 }
