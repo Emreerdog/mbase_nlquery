@@ -181,26 +181,12 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
             return;
         }
 
-        mbase::string tableInformation;
-        try
-        {
-            if(!mbase::psql_get_all_tables(postgreConnector.get_connection_ptr(), tableInformation, gSchemaTableMap))
-            {
-                send_error(in_req, in_resp, NLQ_DB_ERR);
-                return;
-            }   
-        }
-        catch(const std::exception& e)
-        {
-            send_error(in_req, in_resp, NLQ_INTERNAL_SERVER_ERROR);
-            return;
-        }
-
-        mbase::string formedString = mbase::prepare_prompt_static(sqlHistory, query);
+        //mbase::string formedString = mbase::prepare_nlquery_prompt("", sqlHistory, query);
+        mbase::string formedString = mbase::prepare_semantic_correction_prompt(sqlHistory, query);
         mbase::Json outputJson;
         mbase::I32 outputCode;
         mbase::string generatedSql;
-        if(!mbase::psql_produce_output(postgreConnector.get_connection_ptr(), gGlobalModel, genOnly, formedString, outputJson, outputCode, generatedSql))
+        if(!mbase::psql_produce_output(postgreConnector.get_connection_ptr(), gGlobalModel, genOnly, formedString, sqlHistory, outputJson, outputCode, generatedSql))
         {
             send_error(in_req, in_resp, outputCode, generatedSql);
             return;
@@ -451,7 +437,7 @@ int main(int argc, char** argv)
             break;
         }
     }
- 
+    
     mbase::NlqModel myModel(gUserCount);
 
     if(myModel.initialize_model_ex(mbase::from_utf8(gModelPath), 9999999, gNLayers, true, true, mbase::inf_query_devices()) != mbase::NlqModel::flags::INF_MODEL_INFO_INITIALIZING_MODEL)

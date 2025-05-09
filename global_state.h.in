@@ -10,6 +10,14 @@ MBASE_BEGIN
 class NlqModel;
 MBASE_END
 
+struct table_relation_meta {
+    mbase::string columnName;
+    mbase::string columnDataType;
+    mbase::string constraintName;
+    mbase::string referenceTable;
+    mbase::string referenceColumn;
+};
+
 inline mbase::I32 gMaxRows = 1000;
 inline mbase::I32 gUserCount = 2;
 inline mbase::I32 gListenPort = 8080;
@@ -36,5 +44,6 @@ inline mbase::string gDBName;
 inline mbase::string gDBUsername;
 inline mbase::string gDBPassword;
 inline mbase::string gTotalSchemaString; // Used if the static schema option is specified
+inline mbase::unordered_map<mbase::string, mbase::vector<table_relation_meta>> gCachedTableRelations;
 
 #endif //

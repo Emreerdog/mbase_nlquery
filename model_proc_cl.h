@@ -192,10 +192,11 @@ public:
         mbase::string userEnd;
         mbase::tokenizer_align_instruct_template(this->get_architecture(), systemStart, assistantStart, userStart, systemEnd, assistantEnd, userEnd);
 
-        dataSectionString += systemEnd;
+        //dataSectionString += systemEnd;
         
         mbase::inf_text_token_vector systemStartTokens;
         mbase::inf_text_token_vector dataSectionTokens;
+        mbase::inf_text_token_vector systemEndTokens;
 
         if(this->tokenize_input(systemStart.c_str(), systemStart.size(), systemStartTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
         {
@@ -209,9 +210,20 @@ public:
             printf("INFO: This should never happen, contact with the provider\n");
         }
 
+        if(this->tokenize_input(systemEnd.c_str(), systemEnd.size(), systemEndTokens) != NlqModel::flags::INF_MODEL_SUCCESS)
+        {
+            printf("ERR: NLQuery configuration is corrupted!\n");
+            printf("INFO: This should never happen, contact with the provider\n");
+        }
+
         mbase::inf_text_token_vector totalSystemPromptTokens;
 
         for(const inf_text_token& tmpToken : systemStartTokens)
+        {
+            totalSystemPromptTokens.push_back(tmpToken);
+        }
+
+        for(const inf_text_token& tmpToken : dataSectionTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
@@ -220,8 +232,8 @@ public:
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
-
-        for(const inf_text_token& tmpToken : dataSectionTokens)
+        
+        for(const inf_text_token& tmpToken : systemEndTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
@@ -238,7 +250,7 @@ public:
 
             this->register_context_process(
                 newProcessor,
-                gSystemPromptTokens.size() + 2048,
+                gSystemPromptTokens.size() + 8192,
                 512,
                 16,
                 16,

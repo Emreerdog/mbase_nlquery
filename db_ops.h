@@ -58,6 +58,28 @@ private:
     bool bIsConnected = false;
 };
 
+mbase::string prepare_nlquery_prompt(
+    const mbase::string& in_table_info,
+    const mbase::string& in_sql_history,
+    const mbase::string& in_nlquery
+)
+{
+    mbase::string tableInfoSection = "<TABLE_HINT_BEGIN>\n"+ in_table_info +"\n<TABLE_HINT_END>\n";
+    mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
+    mbase::string nlQuerySection = "<NLQUERY_BEGIN>\n" + in_nlquery + "\n<NLQUERY_END>\n";
+    return tableInfoSection + sqlHistorySection + nlQuerySection;
+}
+
+mbase::string prepare_semantic_correction_prompt(
+    const mbase::string& in_sql_history,
+    const mbase::string& in_language
+)
+{
+    mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
+    mbase::string correctionSection = "<SEMANTIC_CORRECT_NATURAL_LANGUAGE_BEGIN>\n" + in_language + "\n<SEMANTIC_CORRECT_NATURAL_LANGUAGE_END>\n";
+    return sqlHistorySection + correctionSection;
+}
+
 bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase::unordered_map<mbase::string, mbase::string>& out_schema_map)
 {
     if(!gProvidedSchemas.size())
@@ -114,7 +136,7 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
             mbase::Json metadataJsonArray = mbase::Json::parse(tableMetaData).second;
 
             mbase::string tableMetaTotalString;
-
+            table_relation_meta trm;
             for(mbase::Json& metaItem : metadataJsonArray.getArray())
             {
                 mbase::string constType = "null";
@@ -133,10 +155,19 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
 
                 if(metaItem["referenced_column"].isString())
                 {
-                    refTable = metaItem["referenced_column"].getString();
+                    refColumn = metaItem["referenced_column"].getString();
                 }
 
-                tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ';' + constType + ';' + refTable + ";" + refColumn + ',';
+                trm.columnName = metaItem["column_name"].getString();
+                trm.columnDataType = metaItem["data_type"].getString();
+                trm.constraintName = constType;
+                trm.referenceTable = refTable;
+                trm.referenceColumn = refColumn;
+
+                gCachedTableRelations[tableName].push_back(trm);
+
+                //tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ';' + constType + ';' + refTable + ";" + refColumn + ',';
+                tableMetaTotalString += metaItem["column_name"].getString() + ',';
             }
             
             if(tableMetaTotalString.size())
@@ -149,12 +180,11 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
     
         PQclear(resultExec);    
     }
-    
     out_tables = std::move(outputTables);
     return true;
 }
 
-bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_genonly, const mbase::string& in_prompt, mbase::Json& out_json, I32& out_status, mbase::string& out_sql)
+bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_genonly, const mbase::string& in_prompt, const mbase::string& in_sql_history, mbase::Json& out_json, I32& out_status, mbase::string& out_sql)
 {
     NlqProcessor* activeProcessor = NULL;
     if(!in_model->acquire_processor(activeProcessor))
@@ -187,6 +217,80 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_geno
     {
         mbase::sleep(2); // prevent overuse
     }
+
+    mbase::string genSemanticFixJson = clientPtr->get_generated_query();
+
+    std::pair<mbase::Json::Status, mbase::Json> jsonParseResult = mbase::Json::parse(genSemanticFixJson);
+    if(jsonParseResult.first != mbase::Json::Status::success)
+    {
+        // grammar correction error
+        out_status = NLQ_SEMANTIC_CORRECTION_ERROR;
+        return false;
+    }
+
+    mbase::Json semanticCorrectionJson = jsonParseResult.second;
+
+    if(!semanticCorrectionJson["tables"].isArray() || !semanticCorrectionJson["corrected_language"].isString())
+    {
+        // grammar correction error
+        out_status = NLQ_SEMANTIC_CORRECTION_ERROR;
+        return false;
+    }
+
+    mbase::string tableHintsString;
+    mbase::string correctedLanguage = semanticCorrectionJson["corrected_language"].getString();
+
+    if(semanticCorrectionJson["tables"].getArray().size() < gCachedTableRelations.size())
+    {
+        for(mbase::Json& tableValue : semanticCorrectionJson["tables"].getArray())
+        {
+            if(tableValue.isString())
+            {
+                mbase::unordered_map<mbase::string, mbase::vector<table_relation_meta>>::iterator It = gCachedTableRelations.find(tableValue.getString());
+                if(It == gCachedTableRelations.end())
+                {
+                    // possible table hallucination
+                }
+                else
+                {
+                    mbase::string relationString = It->first + '=';
+                    const mbase::vector<table_relation_meta>& tableRelationVector = It->second;
+                    for(const table_relation_meta& tableRelationMeta : tableRelationVector)
+                    {
+                        relationString += tableRelationMeta.columnName + ';' + tableRelationMeta.columnDataType + ';' + tableRelationMeta.constraintName + ';' + tableRelationMeta.referenceTable + ';' + tableRelationMeta.referenceColumn + ',';
+                    }
+                    relationString.pop_back(); // remove the last comma
+                    tableHintsString += relationString + '\n';
+                }
+            }
+        }
+    }
+
+    clientPtr->query_hard_reset();
+    tokenVector.clear();
+    ctxLine.mMessage = mbase::prepare_nlquery_prompt(tableHintsString, in_sql_history, correctedLanguage);
+    
+    if(activeProcessor->tokenize_input(&ctxLine, 1, tokenVector) == NlqProcessor::flags::INF_PROC_ERR_UNABLE_TO_TOKENIZE_INPUT)
+    {
+        out_status = NLQ_INTERNAL_SERVER_ERROR;
+        in_model->release_processor(activeProcessor);
+        return false;
+    }
+
+    if(activeProcessor->execute_input_sync(tokenVector) != NlqProcessor::flags::INF_PROC_INFO_NEED_UPDATE)
+    {
+        out_status = NLQ_INTERNAL_SERVER_ERROR;
+        in_model->release_processor(activeProcessor);
+        return false;
+    }
+    gLoopSync.acquire();
+    activeProcessor->update();
+    gLoopSync.release();
+    while(clientPtr->is_processing())
+    {
+        mbase::sleep(2); // prevent overuse
+    }
+
     mbase::string genSql = clientPtr->get_generated_query();
     in_model->release_processor(activeProcessor);
     if(genSql.contains("NLQ_INV"))
@@ -284,31 +388,6 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_geno
     out_sql = genSql;
     PQclear(resultExec);
     return true;
-}
-
-mbase::string prepare_prompt(
-    const mbase::string& in_db_provider,
-    const mbase::string& in_table_info,
-    const mbase::string& in_sql_history,
-    const mbase::string& in_nlquery
-)
-{
-    mbase::string providerSection = "<DB_SOURCE_BEGIN>\n" + in_db_provider + "\n<DB_SOURCE_END>\n";
-    mbase::string tableInfoSection = "<TABLE_INFO_BEGIN>\n" + in_table_info + "\n<TABLE_INFO_END>\n";
-    mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
-    mbase::string nlQuerySection = "<NL_QUERY_BEGIN>\n" + in_nlquery + "\n<NL_QUERY_END>\n";
-
-    return providerSection + tableInfoSection + sqlHistorySection + nlQuerySection;
-}
-
-mbase::string prepare_prompt_static(
-    const mbase::string& in_sql_history,
-    const mbase::string& in_nlquery
-)
-{
-    mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
-    mbase::string nlQuerySection = "<NLQUERY_BEGIN>\n" + in_nlquery + "\n<NLQUERY_END>\n";
-    return sqlHistorySection + nlQuerySection;
 }
 
 MBASE_END
