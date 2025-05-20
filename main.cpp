@@ -181,8 +181,7 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
             return;
         }
 
-        //mbase::string formedString = mbase::prepare_nlquery_prompt("", sqlHistory, query);
-        mbase::string formedString = mbase::prepare_semantic_correction_prompt(sqlHistory, query);
+        mbase::string formedString = mbase::prepare_nlquery_prompt(sqlHistory, query);
         mbase::Json outputJson;
         mbase::I32 outputCode;
         mbase::string generatedSql;
@@ -399,7 +398,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if(!mbase::psql_get_all_tables(postgreConnect.get_connection_ptr(), gTotalSchemaString, gSchemaTableMap))
+    if(!mbase::psql_get_all_tables(postgreConnect.get_connection_ptr()))
     {
         printf("FATAL: Unable to retrieve schema information from the database\n");
         return 1;

@@ -59,15 +59,13 @@ private:
 };
 
 mbase::string prepare_nlquery_prompt(
-    const mbase::string& in_table_info,
     const mbase::string& in_sql_history,
     const mbase::string& in_nlquery
 )
 {
-    mbase::string tableInfoSection = "<TABLE_HINT_BEGIN>\n"+ in_table_info +"\n<TABLE_HINT_END>\n";
     mbase::string sqlHistorySection = "<SQL_HISTORY_BEGIN>\n" + in_sql_history + "\n<SQL_HISTORY_END>\n";
     mbase::string nlQuerySection = "<NLQUERY_BEGIN>\n" + in_nlquery + "\n<NLQUERY_END>\n";
-    return tableInfoSection + sqlHistorySection + nlQuerySection;
+    return sqlHistorySection + nlQuerySection;
 }
 
 mbase::string prepare_semantic_correction_prompt(
@@ -80,8 +78,64 @@ mbase::string prepare_semantic_correction_prompt(
     return sqlHistorySection + correctionSection;
 }
 
-bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase::unordered_map<mbase::string, mbase::string>& out_schema_map)
+GENERIC build_table_metadata(const mbase::string& in_schema_name, const mbase::string& in_table_name, mbase::vector<mbase::Json>& in_meta_vector)
 {
+    mbase::string tableMetaTotalString = in_table_name + '=';
+    for(mbase::Json& metaItem : in_meta_vector)
+    {
+        table_relation_meta trm;
+        mbase::string constType = "null";
+        mbase::string refColumn = "null";
+        mbase::string refTable = "null";
+
+        if(metaItem["constraint_type"].isString())
+        {
+            constType = metaItem["constraint_type"].getString();
+        }
+
+        if(metaItem["referenced_table"].isString())
+        {
+            refTable = metaItem["referenced_table"].getString();
+        }
+
+        if(metaItem["referenced_column"].isString())
+        {
+            refColumn = metaItem["referenced_column"].getString();
+        }
+
+        trm.columnName = metaItem["column_name"].getString();
+        trm.columnDataType = metaItem["data_type"].getString();
+        trm.constraintName = constType;
+        trm.referenceTable = refTable;
+        trm.referenceColumn = refColumn;
+
+        gCachedTableRelations[in_table_name].push_back(trm);
+        tableMetaTotalString += trm.columnName + ';' + refTable + ',';
+    }
+    tableMetaTotalString.pop_back(); // remove the last comma
+    tableMetaTotalString += '\n';
+    gSchemaTableMap[in_schema_name] += tableMetaTotalString;
+}
+
+bool psql_get_all_tables(PGconn* in_connection)
+{
+    mbase::string cachedTableJsonString = mbase::read_file_as_string("table.json");
+    if(cachedTableJsonString.size())
+    {
+        // reading from cached table metadata
+        printf("INFO: Reading from cached schema information!\n");
+        mbase::Json tableMetaInformation = mbase::Json::parse(cachedTableJsonString).second;
+        std::map<mbase::string, mbase::Json> schemaObject = tableMetaInformation.getObject();
+        for(auto& n : schemaObject)
+        {
+            for(mbase::Json& metadataObject : n.second.getArray())
+            {
+                build_table_metadata(n.first, metadataObject["table"].getString(), metadataObject["meta"].getArray());
+            }
+        }
+        return true;
+    }
+
     if(!gProvidedSchemas.size())
     {
         // Retrieve all schemas from the database
@@ -112,9 +166,13 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
     }
 
     mbase::string outputTables;
+    mbase::Json totalJson;
+
     for(const mbase::string& schemaName: gProvidedSchemas)
     {
+        totalJson[schemaName].setArray();
         //mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' AND c.table_schema = '%s' GROUP BY t.table_name;", schemaName.c_str(), schemaName.c_str());
+        //mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type, 'constraint_type', tc.constraint_type, 'referenced_table', ccu.table_name, 'referenced_column', ccu.column_name ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name AND t.table_schema = c.table_schema LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name AND c.table_schema = kcu.table_schema LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_type = 'FOREIGN KEY' AND tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' GROUP BY t.table_name;", schemaName.c_str());
         mbase::string getTablesQuery = mbase::string::from_format("SELECT t.table_name, json_agg( json_build_object( 'column_name', c.column_name, 'data_type', c.data_type, 'constraint_type', tc.constraint_type, 'referenced_table', ccu.table_name, 'referenced_column', ccu.column_name ) ) AS columns FROM information_schema.tables t JOIN information_schema.columns c ON t.table_name = c.table_name AND t.table_schema = c.table_schema LEFT JOIN information_schema.key_column_usage kcu ON c.table_name = kcu.table_name AND c.column_name = kcu.column_name AND c.table_schema = kcu.table_schema LEFT JOIN information_schema.table_constraints tc ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_type = 'FOREIGN KEY' AND tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema WHERE t.table_schema = '%s' AND t.table_type = 'BASE TABLE' GROUP BY t.table_name;", schemaName.c_str());
         PGresult* resultExec = PQexec(in_connection, getTablesQuery.c_str());
     
@@ -128,59 +186,27 @@ bool psql_get_all_tables(PGconn* in_connection, mbase::string& out_tables, mbase
             return false;
         }
         
+        mbase::vector<mbase::Json>& jsonArray = totalJson[schemaName].getArray();
         int tupleCount = PQntuples(resultExec);
         for(int i = 0; i < tupleCount; i++)
         {
             mbase::string tableName = PQgetvalue(resultExec, i, 0);
             mbase::string tableMetaData = PQgetvalue(resultExec, i, 1);
+
+            mbase::Json tableDescriptionJson;
             mbase::Json metadataJsonArray = mbase::Json::parse(tableMetaData).second;
 
-            mbase::string tableMetaTotalString;
-            table_relation_meta trm;
-            for(mbase::Json& metaItem : metadataJsonArray.getArray())
-            {
-                mbase::string constType = "null";
-                mbase::string refColumn = "null";
-                mbase::string refTable = "null";
+            tableDescriptionJson["table"] = tableName;
+            tableDescriptionJson["meta"] = metadataJsonArray;
 
-                if(metaItem["constraint_type"].isString())
-                {
-                    constType = metaItem["constraint_type"].getString();
-                }
+            build_table_metadata(schemaName, tableName, metadataJsonArray.getArray());
 
-                if(metaItem["referenced_table"].isString())
-                {
-                    refTable = metaItem["referenced_table"].getString();
-                }
-
-                if(metaItem["referenced_column"].isString())
-                {
-                    refColumn = metaItem["referenced_column"].getString();
-                }
-
-                trm.columnName = metaItem["column_name"].getString();
-                trm.columnDataType = metaItem["data_type"].getString();
-                trm.constraintName = constType;
-                trm.referenceTable = refTable;
-                trm.referenceColumn = refColumn;
-
-                gCachedTableRelations[tableName].push_back(trm);
-
-                //tableMetaTotalString += metaItem["column_name"].getString() + ';' + metaItem["data_type"].getString() + ';' + constType + ';' + refTable + ";" + refColumn + ',';
-                tableMetaTotalString += metaItem["column_name"].getString() + ',';
-            }
-            
-            if(tableMetaTotalString.size())
-            {
-                tableMetaTotalString.pop_back(); // Remove the last comma
-                gSchemaTableMap[schemaName] += tableName + '=' + tableMetaTotalString + '\n';
-            }
-            outputTables += mbase::string::from_format("%s : %s\n", tableName.c_str(), tableMetaData.c_str());
+            jsonArray.push_back(tableDescriptionJson);
         }
     
         PQclear(resultExec);    
     }
-    out_tables = std::move(outputTables);
+    mbase::write_string_to_file("table.json", totalJson.toStringPretty());
     return true;
 }
 
@@ -218,80 +244,8 @@ bool psql_produce_output(PGconn* in_connection, NlqModel* in_model, bool in_geno
         mbase::sleep(2); // prevent overuse
     }
 
-    mbase::string genSemanticFixJson = clientPtr->get_generated_query();
-
-    std::pair<mbase::Json::Status, mbase::Json> jsonParseResult = mbase::Json::parse(genSemanticFixJson);
-    if(jsonParseResult.first != mbase::Json::Status::success)
-    {
-        // grammar correction error
-        out_status = NLQ_SEMANTIC_CORRECTION_ERROR;
-        return false;
-    }
-
-    mbase::Json semanticCorrectionJson = jsonParseResult.second;
-
-    if(!semanticCorrectionJson["tables"].isArray() || !semanticCorrectionJson["corrected_language"].isString())
-    {
-        // grammar correction error
-        out_status = NLQ_SEMANTIC_CORRECTION_ERROR;
-        return false;
-    }
-
-    mbase::string tableHintsString;
-    mbase::string correctedLanguage = semanticCorrectionJson["corrected_language"].getString();
-
-    if(semanticCorrectionJson["tables"].getArray().size() < gCachedTableRelations.size())
-    {
-        for(mbase::Json& tableValue : semanticCorrectionJson["tables"].getArray())
-        {
-            if(tableValue.isString())
-            {
-                mbase::unordered_map<mbase::string, mbase::vector<table_relation_meta>>::iterator It = gCachedTableRelations.find(tableValue.getString());
-                if(It == gCachedTableRelations.end())
-                {
-                    // possible table hallucination
-                }
-                else
-                {
-                    mbase::string relationString = It->first + '=';
-                    const mbase::vector<table_relation_meta>& tableRelationVector = It->second;
-                    for(const table_relation_meta& tableRelationMeta : tableRelationVector)
-                    {
-                        relationString += tableRelationMeta.columnName + ';' + tableRelationMeta.columnDataType + ';' + tableRelationMeta.constraintName + ';' + tableRelationMeta.referenceTable + ';' + tableRelationMeta.referenceColumn + ',';
-                    }
-                    relationString.pop_back(); // remove the last comma
-                    tableHintsString += relationString + '\n';
-                }
-            }
-        }
-    }
-
-    clientPtr->query_hard_reset();
-    tokenVector.clear();
-    ctxLine.mMessage = mbase::prepare_nlquery_prompt(tableHintsString, in_sql_history, correctedLanguage);
-    
-    if(activeProcessor->tokenize_input(&ctxLine, 1, tokenVector) == NlqProcessor::flags::INF_PROC_ERR_UNABLE_TO_TOKENIZE_INPUT)
-    {
-        out_status = NLQ_INTERNAL_SERVER_ERROR;
-        in_model->release_processor(activeProcessor);
-        return false;
-    }
-
-    if(activeProcessor->execute_input_sync(tokenVector) != NlqProcessor::flags::INF_PROC_INFO_NEED_UPDATE)
-    {
-        out_status = NLQ_INTERNAL_SERVER_ERROR;
-        in_model->release_processor(activeProcessor);
-        return false;
-    }
-    gLoopSync.acquire();
-    activeProcessor->update();
-    gLoopSync.release();
-    while(clientPtr->is_processing())
-    {
-        mbase::sleep(2); // prevent overuse
-    }
-
     mbase::string genSql = clientPtr->get_generated_query();
+
     in_model->release_processor(activeProcessor);
     if(genSql.contains("NLQ_INV"))
     {

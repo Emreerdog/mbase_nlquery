@@ -42,6 +42,13 @@ public:
     {
         if(out_is_kv_locked)
         {
+            mbase::vector<mbase::inf_token_description> tokDesc;
+            out_processor->tokens_to_description_vector(gSystemPromptTokens, tokDesc);
+            for(auto& n : tokDesc)
+            {
+                std::cout << n.mTokenString;
+            }
+            
             gLoadedProcessorCounter++;
             isProcessing = false;
         }
@@ -163,23 +170,16 @@ public:
 
         metaConfigurator.get_key("nlquery.tokens", gSystemPromptTokens);
 
-        mbase::string dataSectionString = "<SCHEMA_LIST_BEGIN>\n";
+        mbase::string dataSectionString = "<DB_SOURCE_BEGIN>\npostgresql\n<DB_SOURCE_END>\n<SCHEMA_LIST_BEGIN>\n";
         for(auto& n : gSchemaTableMap)
         {
             dataSectionString += n.first + '\n';
         }
-        dataSectionString += "<DB_SOURCE_BEGIN>\npostgresql\n<DB_SOURCE_END>\n<SCHEMA_LIST_END>\n";
+        dataSectionString += "<SCHEMA_LIST_END>\n";
         for(auto& n : gSchemaTableMap)
         {
-            mbase::string tableInfoString = mbase::string::from_format("<%s:TABLE_INFO_BEGIN>%s<%s:TABLE_INFO_END>\n", n.first.c_str(), n.second.c_str(), n.first.c_str());
+            mbase::string tableInfoString = mbase::string::from_format("<%s:TABLE_INFO_BEGIN>\n%s<%s:TABLE_INFO_END>\n", n.first.c_str(), n.second.c_str(), n.first.c_str());
             dataSectionString += tableInfoString;
-        }
-
-        if(gHintFilePath.size())
-        {
-            printf("INFO: Hint file %s applied.\n", gHintFilePath.c_str());
-            mbase::string hintText = mbase::read_file_as_string(gHintFilePath);
-            dataSectionString += hintText + '\n';
         }
 
         printf("SUCCESS: NLQuery configuration read!\n");
@@ -193,6 +193,12 @@ public:
         mbase::tokenizer_align_instruct_template(this->get_architecture(), systemStart, assistantStart, userStart, systemEnd, assistantEnd, userEnd);
 
         //dataSectionString += systemEnd;
+        if(gHintFilePath.size())
+        {
+            printf("INFO: Hint file %s applied.\n", gHintFilePath.c_str());
+            mbase::string hintText = mbase::read_file_as_string(gHintFilePath);
+            systemEnd = hintText + systemEnd;
+        }
         
         mbase::inf_text_token_vector systemStartTokens;
         mbase::inf_text_token_vector dataSectionTokens;
