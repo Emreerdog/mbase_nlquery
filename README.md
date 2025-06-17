@@ -1,10 +1,13 @@
 <div align="center">
-  <a href="" />
-    <img alt="MBASE" height="325px" src="https://github.com/user-attachments/assets/c8866234-8605-4d15-9f60-829f1cc209e4">
+  <a href="#">
+    <picture>
+      <source srcset="https://github.com/user-attachments/assets/b927d271-35db-4ec0-a9dd-2980f676863f" media="(prefers-color-scheme: dark)">
+      <source srcset="https://github.com/user-attachments/assets/310ad545-e090-4c65-b7dc-9dc821c01ca2" media="(prefers-color-scheme: light)">
+      <img alt="MBASE" height="325px" src="https://github.com/user-attachments/assets/b927d271-35db-4ec0-a9dd-2980f676863f">
+    </picture>
   </a>
 </div>
 <br>
-
 
 # MBASE NLQuery
 
