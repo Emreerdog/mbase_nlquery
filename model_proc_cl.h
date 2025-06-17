@@ -229,18 +229,19 @@ public:
             totalSystemPromptTokens.push_back(tmpToken);
         }
 
-        for(const inf_text_token& tmpToken : dataSectionTokens)
+        for(const inf_text_token& tmpToken : gSystemPromptTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
 
-        for(const inf_text_token& tmpToken : gSystemPromptTokens)
+        for(const inf_text_token& tmpToken : dataSectionTokens)
         {
             totalSystemPromptTokens.push_back(tmpToken);
         }
         
         for(const inf_text_token& tmpToken : systemEndTokens)
         {
+            // this part contains systemd end token and the description file content
             totalSystemPromptTokens.push_back(tmpToken);
         }
 

@@ -110,7 +110,7 @@ GENERIC build_table_metadata(const mbase::string& in_schema_name, const mbase::s
         trm.referenceColumn = refColumn;
 
         gCachedTableRelations[in_table_name].push_back(trm);
-        tableMetaTotalString += trm.columnName + ';' + refTable + ',';
+        tableMetaTotalString += trm.columnName + ';' + trm.referenceTable + ',';
     }
     tableMetaTotalString.pop_back(); // remove the last comma
     tableMetaTotalString += '\n';

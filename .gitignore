@@ -6,5 +6,6 @@ build_cpu/
 build_cuda/
 docs/build/
 scripts/__pycache__
+global_state.h
 change_log.txt
 .DS_Store

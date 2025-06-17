@@ -14,6 +14,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/web/bootstrap.min.css ${MBASE_NLQUERY
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/global_state.h.in ${CMAKE_CURRENT_SOURCE_DIR}/global_state.h)
 
 add_executable(mbase_nlquery main.cpp)
+add_executable(mbase_nlquery_cooker prompt_cooker.cpp)
 
 find_package(mbase.libs REQUIRED COMPONENTS std inference json)
 
@@ -35,3 +36,7 @@ find_package(PostgreSQL REQUIRED)
 target_compile_features(mbase_nlquery PUBLIC cxx_std_20)
 target_link_libraries(mbase_nlquery PRIVATE mbase-std mbase-inference mbase-json PostgreSQL::PostgreSQL)
 target_include_directories(mbase_nlquery PUBLIC mbase-std mbase-inference mbase-json PostgreSQL::PostgreSQL)
+
+target_compile_features(mbase_nlquery_cooker PUBLIC cxx_std_20)
+target_link_libraries(mbase_nlquery_cooker PRIVATE mbase-inference)
+target_include_directories(mbase_nlquery_cooker PUBLIC mbase-inference)
