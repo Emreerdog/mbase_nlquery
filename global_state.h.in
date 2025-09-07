@@ -25,6 +25,7 @@ inline mbase::I32 gNLayers = 999;
 inline mbase::I32 gLoadedProcessorCounter = 0;
 inline bool gIsWebui = true;
 inline bool gSSLEnabled = false;
+inline bool gForceCredentials = false;
 inline mbase::NlqModel* gGlobalModel = nullptr;
 inline mbase::mutex gLoopSync;
 inline mbase::set<mbase::string> gProvidedSchemas;

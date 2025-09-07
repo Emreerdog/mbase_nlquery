@@ -15,21 +15,18 @@ MBASE NLQuery is a natural language to SQL generator/executor engine using the [
 
 It internally uses the [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model to convert the provided natural language into SQL queries and executes it through the database client SDKs (PostgreSQL only for now). However, the execution can be disabled for security.
 
-MBASE NLQuery doesn't require the user to supply a schema or table information on the database. User only needs to supply mundane parameters such as: database address, port, username, password etc.
+MBASE NLQuery doesn't require the user to supply a table information on the database. User only needs to supply mundane parameters such as: database address, scheman name, port, username, password etc.
 
 It serves a single HTTP REST API endpoint called `nlquery` which can serve to multiple users at the same time and it requires a super-simple JSON formatted data to call.
-
-Also, an MCP server is available to interact with the NLQuery engine.
 
 ## Features
 
 - Offline Text-To-SQL generation/executor engine using [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model with [MBASE SDK](https://github.com/Emreerdog/mbase) as an inference SDK which internally uses [llama.cpp](https://github.com/ggml-org/llama.cpp) as an inference engine.
-- Can generate/execute SQLs without externally providing schema or table information.
+- Can generate/execute SQLs without externally providing table information.
 - Higher-level security through 'generate_only' at API call to prevent the NLQuery engine to execute the generated SQL.
 - Easy to use single HTTP REST API endpoint named as `nlquery`.
 - HTTPS support through OpenSSL.
 - Simple web UI for testing purposes.
-- MCP server support for MCP client integration.
 - CUDA acceleration by default if NVIDIA GPU is found
 
 ## Platforms
@@ -40,7 +37,7 @@ Also, an MCP server is available to interact with the NLQuery engine.
 
 ## Build
 
-In order to compile from source, you will need the following packages:
+In order to build from source, you will need the following packages:
 
 - [MBASE SDK](https://github.com/Emreerdog/mbase)
 - [PostgreSQL](https://www.postgresql.org) libraries
@@ -66,31 +63,30 @@ cmake -B build
 cmake --build build --config Release -j
 ```
 
-After the compilation is finished, you can run the program:
+After the compilation is finished, go to the build directory
 
 ```bash
 cd build
-./mbase_nlquery
 ```
 
 ## Usage
 
+### Printing Help
+
+```bash
+./mbase_nlquery --help
+```
+
 ### Running without configuration
 
 ```bash
-mbase_nl_query
+./mbase_nlquery
 ```
 
 ### Running with configuration
 
 ```bash
-mbase_nl_query --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --disable-webui 
-```
-
-### Printing Help
-
-```bash
-mbase_nl_query --help
+mbase_nlquery --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --disable-webui 
 ```
 
 ## Single-api Endpoint
@@ -104,8 +100,8 @@ mbase_nl_query --help
 
 ```js
 {
-    "db_username" : "#username", // Optional
-    "db_password" : "#password", // Optional
+    "db_username" : "#username", // Optional if --force-credentials is not set
+    "db_password" : "#password", // Optional if --force-credentials is not set
     "query" : "#Your prompt",
     "sql_history" : "#response_history", // Optional
     "generate_only": true | false // Optional, default is true
@@ -150,16 +146,16 @@ mbase_nl_query --help
 
 | Status | Message                                                                                                 |
 | ------ | ------------------------------------------------------------------------------------------------------- |
-| 0      |                                                                                                         |
+| 0      | Success                                                                                                 |
 | 1      | NLQuery engine is overloaded. Try again later                                                           |
 | 2      | Database connection failed                                                                              |
 | 3      | Given query is invalid. Make sure it is natural language and its context is related to the SQL database |
 | 4      | Internal server error. Try again later                                                                  |
-| 5      | Message body is invalid. Make sure you populate the mandatory fields correctly                          |
-| 6      | Given database provider is not supported                                                                |
+| 5      | Message body is invalid. Make sure you populate the HTTP body correctly.                                |
+| 6 (ignore)      | Given database provider is not supported                                                       |
 | 7      | Database failed to execute the generated query                                                          |
 | 8      | Given prompt is too long. This may also happen if the provided sql_history is too long                  |
-| 9      | Too much data returned from the database                                                                |
+| 9      | Too much data returned from the database, specify the --max-rows option at program startup              |
 
 ## Security
 

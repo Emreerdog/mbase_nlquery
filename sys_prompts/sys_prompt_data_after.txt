@@ -20,16 +20,16 @@ schema_name_n
 {Database Type}
 <DB_SOURCE_END>
 <{schema_name_1}:TABLE_INFO_BEGIN>
-{table_name_1}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
-{table_name_2}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
+{table_name_1}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
+{table_name_2}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
 ...
-{table_name_n}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
+{table_name_n}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
 <{schema_name_1}:TABLE_INFO_END>
 <{schema_name_2}:TABLE_INFO_BEGIN>
-{table_name_1}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
-{table_name_2}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
+{table_name_1}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
+{table_name_2}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
 ...
-{table_name_n}={column_name_1;column_reference_table_1},{column_name_2;column_reference_table_2},...{column_name_n;column_reference_table_n}
+{table_name_n}={column_name_1;column_type_1;column_reference_table_1},{column_name_2;column_type_2;column_reference_table_2},...{column_name_n;column_type_n;column_reference_table_n}
 <{schema_name_2}:TABLE_INFO_END>
 
 [Data Source Format Description]

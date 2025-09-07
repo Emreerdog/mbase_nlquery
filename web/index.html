@@ -7,12 +7,17 @@
     <!-- Bootstrap CSS -->
     <link href="bootstrap.min.css" rel="stylesheet">
 </head>
+<style>
+.notif-text:hover {
+  cursor: pointer;
+}
+</style>
 <body style="background-color: #0D1117;">
     <div class="container-fluid mt-4 mb-4 mx-auto px-4">
         <div class="row">
             <div class="col-md-4">
                 <div class="text-center">
-                    <h5 data-bs-toggle="collapse" data-bs-target="#apiCollapse" aria-expanded="false" aria-controls="apiCollapse">Click for prompt history</h5>
+                    <h5 class="notif-text text-decoration-underline" data-bs-toggle="collapse" data-bs-target="#apiCollapse" aria-expanded="false" aria-controls="apiCollapse">Click for prompt history</h5>
                 </div>
                 <div class="collapse mx-5" id="apiCollapse">     
                     <div class="card" id="chatSection">
@@ -71,7 +76,7 @@
             
             <div class="col-md-4 bd-info">
                 <div class="text-center">
-                    <h5 data-bs-toggle="collapse" data-bs-target="#disclaimerCollapse" aria-expanded="false" aria-controls="disclaimerCollapse">Click for Disclaimer</h5>
+                    <h5 class="notif-text text-decoration-underline" data-bs-toggle="collapse" data-bs-target="#disclaimerCollapse" aria-expanded="false" aria-controls="disclaimerCollapse">Click for Disclaimer</h5>
                 </div>
                 <div class="collapse mx-5" id="disclaimerCollapse">
                     <div class="alert alert-warning" role="alert">

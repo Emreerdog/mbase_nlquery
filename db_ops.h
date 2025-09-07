@@ -24,6 +24,7 @@ public:
 
         if(PQstatus(mPostgreConnection) == ConnStatusType::CONNECTION_BAD)
         {
+            // siktir git o zaman
             if(mPostgreConnection)
             {
                 PQfinish(mPostgreConnection);
@@ -110,7 +111,7 @@ GENERIC build_table_metadata(const mbase::string& in_schema_name, const mbase::s
         trm.referenceColumn = refColumn;
 
         gCachedTableRelations[in_table_name].push_back(trm);
-        tableMetaTotalString += trm.columnName + ';' + trm.referenceTable + ',';
+        tableMetaTotalString += trm.columnName + ';' + trm.columnDataType + ';' + trm.referenceTable + ',';
     }
     tableMetaTotalString.pop_back(); // remove the last comma
     tableMetaTotalString += '\n';

@@ -28,8 +28,8 @@ void print_usage()
     printf("Options: \n\n");
     printf("-h, --help                        Print usage.\n");
     printf("-v, --version                     Shows program version.\n");
-    printf(mbase::string::from_format("--program-path <str>              NLQuery web page path (default=%s).\n", gProgramPath.c_str()).c_str());
-    printf(mbase::string::from_format("--model-path <str>                NLQuery model path (default=%s).\n", gModelPath.c_str()).c_str());
+    printf("--program-path <str>              NLQuery web page path (default=%s).\n", gProgramPath.c_str());
+    printf("--model-path <str>                NLQuery model path (default=%s).\n", gModelPath.c_str());
     printf("--hostname <str>                  Hostname to listen to (default=\"127.0.0.1\").\n");
     printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 if HTTPS\").\n");
     printf("--ssl-public <str>                SSL public key file.\n");
@@ -38,6 +38,7 @@ void print_usage()
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
     printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
     printf("--disable-webui                   Disables webui.\n");
+    printf("--force-credentials               Forces credentials such as username and password to be sent with the message body.\n");
     printf("--hint-file <str>                 Optional text file containing hints and information about the database. If given, may improve performance.\n");
     printf("--db-hostname <str>               Hostname of the postgresql database.\n");
     printf("--db-port <int>                   Port of the database.\n");
@@ -119,8 +120,13 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
 
     mbase::string databaseName = gDBName;
     mbase::string provider = gDBProvider;
-    mbase::string userName = gDBUsername;
-    mbase::string password = gDBPassword;
+    mbase::string userName;
+    mbase::string password;
+    if(!gForceCredentials)
+    {
+        userName = gDBUsername;
+        password = gDBPassword;
+    }
     mbase::string hostname = gDBHostname;
     int hostPort = gDBPort;
 
@@ -129,6 +135,12 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
     if(!givenJson["query"].isString())
     {
         send_error(in_req, in_resp, NLQ_INVALID_PAYLOAD);
+        return;
+    }
+
+    if(gForceCredentials && (!givenJson["db_username"].isString() || !givenJson["db_password"].isString()))
+    {
+        send_error(in_req, in_resp, NLQ_CONNECTION_FAILED);
         return;
     }
 
@@ -242,7 +254,7 @@ void server_thread()
     printf("REST API URL: %s/nlquery\n\n", webUrl.c_str());
 
     svr->listen(gListenHostname.c_str(), gListenPort);
-    printf("ERR: Server can't listen! Make sure the hostname and port is valid\n");
+    printf("ERR: Server can't listen! Make sure the hostname and port is available for listening.\n");
     exit(1);
 }
 
@@ -315,6 +327,11 @@ int main(int argc, char** argv)
             mbase::argument_get<int>::value(i, argc, argv, gMaxRows);
         }
         
+        else if(argumentString == "--force-credentials")
+        {
+            gForceCredentials = true;
+        }
+
         else if(argumentString == "--disable-webui")
         {
             gIsWebui = false;

@@ -43,11 +43,6 @@ public:
         if(out_is_kv_locked)
         {
             mbase::vector<mbase::inf_token_description> tokDesc;
-            out_processor->tokens_to_description_vector(gSystemPromptTokens, tokDesc);
-            for(auto& n : tokDesc)
-            {
-                std::cout << n.mTokenString;
-            }
             
             gLoadedProcessorCounter++;
             isProcessing = false;
