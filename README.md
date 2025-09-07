@@ -164,7 +164,7 @@ mbase_nlquery --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --
     <picture>
       <source srcset="https://github.com/user-attachments/assets/2befff01-84da-4046-9adc-3d6d2e19f928" media="(prefers-color-scheme: dark)">
       <source srcset="https://github.com/user-attachments/assets/5839f322-bc4a-4163-a995-cc16d84b4633" media="(prefers-color-scheme: light)">
-      <img alt="NLQuery Diagram" width="970" height="486" alt="nlquery_diag_dark" src="https://github.com/user-attachments/assets/2befff01-84da-4046-9adc-3d6d2e19f928" />
+      <img alt="NLQuery Diagram" alt="nlquery_diag_dark" src="https://github.com/user-attachments/assets/2befff01-84da-4046-9adc-3d6d2e19f928" />
     </picture>
   </a>
 </div>
