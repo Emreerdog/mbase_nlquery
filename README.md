@@ -21,7 +21,7 @@ It serves a single HTTP REST API endpoint called `nlquery` which can serve to mu
 
 ## Features
 
-- Offline Text-To-SQL generation/executor engine using [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model with [MBASE SDK](https://github.com/Emreerdog/mbase) as an inference SDK which internally uses [llama.cpp](https://github.com/ggml-org/llama.cpp) as an inference engine.
+- Offline Text-To-SQL generation/executor engine using [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model with [MBASE SDK](https://github.com/Emreerdog/mbase) as an LLM SDK which internally uses [llama.cpp](https://github.com/ggml-org/llama.cpp) as an inference engine.
 - Can generate/execute SQLs without externally providing table information.
 - Higher-level security through 'generate_only' at API call to prevent the NLQuery engine to execute the generated SQL.
 - Easy to use single HTTP REST API endpoint named as `nlquery`.
