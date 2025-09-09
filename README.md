@@ -9,6 +9,9 @@
 </div>
 <br>
 
+![GitHub Version](https://img.shields.io/github/v/release/Emreerdog/mbase_nlquery)
+![Static Badge](https://img.shields.io/badge/licence-MIT-blue)
+
 # MBASE NLQuery
 
 MBASE NLQuery is a natural language to SQL generator/executor engine using the [MBASE SDK](https://github.com/Emreerdog/mbase) as an LLM SDK. 
