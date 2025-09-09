@@ -28,6 +28,8 @@ It serves a single HTTP REST API endpoint called `nlquery` which can serve to mu
 - HTTPS support through OpenSSL.
 - Simple web UI for testing purposes.
 - CUDA acceleration by default if NVIDIA GPU is found
+- Extra context information support through `--hint-file` option on program startup.
+- Turn your Text-to-Text GGUF model into NLQuery engine compatible format through prompt cooker.
 
 ## Platforms
 
@@ -39,8 +41,8 @@ It serves a single HTTP REST API endpoint called `nlquery` which can serve to mu
 
 In order to build from source, you will need the following packages:
 
-- [MBASE SDK](https://github.com/Emreerdog/mbase)
-- [PostgreSQL](https://www.postgresql.org) libraries
+- [MBASE SDK](https://docs.mbasesoftware.com/setting-up/download.html)
+- [PostgreSQL](https://www.postgresql.org) client libraries
 - Optional: [OpenSSL](https://openssl-library.org) if HTTPS is desired
 
 After you satisfy the requirements, clone the repository:
@@ -86,7 +88,7 @@ cd build
 ### Running with configuration
 
 ```bash
-mbase_nlquery --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --disable-webui 
+./mbase_nlquery --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --disable-webui 
 ```
 
 ## Single-api Endpoint
@@ -169,6 +171,60 @@ mbase_nlquery --hostname localhost --port 8080 --user-count 4 --max-rows 1000 --
   </a>
 </div>
 
+## Hint File
+
+> [!IMPORTANT]  
+> The text inside the hint file will be KV-Cached into the LLM which implies that there won't be any performance degregation regardless of the size of your text in the hint file besides longer program startup.
+
+User can provide specialized contextual information about the database structure, how tables relate to each other, distinct question-answer pairs etc. in a text file. The given text file can be provided to NLQuery engine at the program startup for better contextual understanding of your database for the LLM.
+
+We can provide a hint file for the popular [dvdrental](https://neon.com/postgresql/postgresql-getting-started/postgresql-sample-database) postgresql sample database
+
+The text below can be provided as an hint to NLQuery engine for better understanding about the context (text is taken from the [dvdrental](https://neon.com/postgresql/postgresql-getting-started/postgresql-sample-database) site):
+```txt
+There are 15 tables in the DVD Rental database:
+
+actor – stores actor data including first name and last name.
+film – stores film data such as title, release year, length, rating, etc.
+film_actor – stores the relationships between films and actors.
+category – stores film’s categories data.
+film_category- stores the relationships between films and categories.
+store – contains the store data including manager staff and address.
+inventory – stores inventory data.
+rental – stores rental data.
+payment – stores customer’s payments.
+staff – stores staff data.
+customer – stores customer data.
+address – stores address data for staff and customers
+city – stores city names.
+country – stores country names.
+```
+
+Then, we can store this text in the `sample.txt` file and give it as an hint file at the program startup:
+
+```bash
+mbase_nlquery ... --hint-file sample.txt
+```
+
+Which will start the engine with better contextual understanding of your database.
+
+## Prompt Cooking
+
+> [!IMPORTANT]  
+> Prompt cooker doesn't modify model weights. It only applies a configuration to the gguf file's metadata section.
+
+Using the `mbase_nlquery_cooker` program, you can configure your Text-to-Text LLM into NLQuery engine compatible LLM.
+
+What prompt cooker does is that it tokenizes the given text file and store the token information in the .gguf file metadata.
+So, when the program starts, NLQuery engine reads those tokens from the GGUF file and KV-Caches into the LLM. 
+
+Here is the usage:
+
+```bash
+Description: Embedding the generated tokens of the given prompt to the .gguf file
+Usage: mbase_nlquery_cooker <nlquery_prompt_path> <model.gguf>
+```
+
 ## Security
 
 ### Disclaimer!
@@ -187,4 +243,4 @@ We are not responsible for any unintended modifications, data loss, or security 
 
 ## Contact
 
-If you have any question, idea, want information or, if you want to be active in MBASE NLQuery project, send us an email at erdog@mbasesoftware.com
+If you have any question, idea, want information or support, send us an email at erdog@mbasesoftware.com
