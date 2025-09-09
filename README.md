@@ -11,7 +11,7 @@
 
 # MBASE NLQuery
 
-MBASE NLQuery is a natural language to SQL generator/executor engine using the [MBASE SDK](https://github.com/Emreerdog/mbase) as an LLM inference SDK. 
+MBASE NLQuery is a natural language to SQL generator/executor engine using the [MBASE SDK](https://github.com/Emreerdog/mbase) as an LLM SDK. 
 
 It internally uses the [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model to convert the provided natural language into SQL queries and executes it through the database client SDKs (PostgreSQL only for now). However, the execution can be disabled for security.
 
