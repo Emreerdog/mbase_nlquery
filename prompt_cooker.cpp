@@ -9,7 +9,8 @@
 
 void print_usage()
 {
-    printf("Usage: nlquery_prompt_cooker <nlquery_prompt_path> <model.gguf>\n\n");
+    printf("Description: Embedding the generated tokens of the given prompt to the .gguf file\n");
+    printf("Usage: mbase_nlquery_cooker <nlquery_prompt_path> <model.gguf>\n\n");
 }
 
 bool gIsRunning = true;
@@ -52,6 +53,12 @@ public:
         mbase::inf_text_token_vector nlqueryTokenVector;
 
         if(this->tokenize_input(&ctxLine, 1, nlqueryTokenVector) != ProcessorObject::flags::INF_PROC_SUCCESS)
+        {
+            std::cout << "Unable to tokenize the nlquery system prompt" << std::endl;
+            exit(1);
+        }
+
+        if(!nlqueryTokenVector.size())
         {
             std::cout << "Unable to tokenize the nlquery system prompt" << std::endl;
             exit(1);

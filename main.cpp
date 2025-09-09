@@ -38,6 +38,7 @@ void print_usage()
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
     printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
     printf("--disable-webui                   Disables webui.\n");
+    printf("--disable-autodownload            Disables automatic download of the missing LLM model.\n");
     printf("--force-credentials               Forces credentials such as username and password to be sent with the message body.\n");
     printf("--hint-file <str>                 Optional text file containing hints and information about the database. If given, may improve performance.\n");
     printf("--db-hostname <str>               Hostname of the postgresql database.\n");
@@ -337,6 +338,11 @@ int main(int argc, char** argv)
             gIsWebui = false;
         }
 
+        else if(argumentString == "--disable-autodownload")
+        {
+            gAutoDownload = false;
+        }
+
         else if(argumentString == "--hint-file")
         {
             mbase::argument_get<mbase::string>::value(i, argc, argv, gHintFilePath);
@@ -430,6 +436,13 @@ int main(int argc, char** argv)
 
         if(!ggufMetaConfig.is_open())
         {
+            if(!gAutoDownload)
+            {
+                printf("ERR: Model file can not be opened: %s\n", gModelPath.c_str());
+                printf("INFO: Make sure to cook the system prompt to your custom gguf file or remove the '--disable-autodownload' option to automatically download the NLQuery compatible LLM\n");
+                exit(1);
+            }
+
             if(triedBefore)
             {
                 printf("ERR: NLQuery attempted to download the model from Huggingface but failed. Make sure you have the 'curl' and an internet connection so that the NLQuery will download the model at program startup\n");
@@ -446,7 +459,7 @@ int main(int argc, char** argv)
         {
             if(!ggufMetaConfig.has_kv_key("nlquery.tokens"))
             {
-                printf("ERR: Model parameters are manually altered!\n");
+                printf("ERR: nlquery parameters are not found in the model file manually altered!\n");
                 printf("INFO: Delete the model and restart the application\n");
                 exit(1);
             }

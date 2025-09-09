@@ -243,4 +243,4 @@ We are not responsible for any unintended modifications, data loss, or security 
 
 ## Contact
 
-If you have any question, idea, want information or support, send us an email at erdog@mbasesoftware.com
+If you have any question, idea, want information or, if you want to be active in MBASE NLQuery project, send us an email at erdog@mbasesoftware.com
