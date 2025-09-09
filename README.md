@@ -18,7 +18,7 @@ MBASE NLQuery is a natural language to SQL generator/executor engine using the [
 
 It internally uses the [Qwen2.5-7B-Instruct-NLQuery](https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery) model to convert the provided natural language into SQL queries and executes it through the database client SDKs (PostgreSQL only for now). However, the execution can be disabled for security.
 
-MBASE NLQuery doesn't require the user to supply a table information on the database. User only needs to supply mundane parameters such as: database address, scheman name, port, username, password etc.
+MBASE NLQuery doesn't require the user to supply a table information on the database. User only needs to supply parameters such as: database address, schema name, port, username, password etc.
 
 It serves a single HTTP REST API endpoint called `nlquery` which can serve to multiple users at the same time and it requires a super-simple JSON formatted data to call.
 
