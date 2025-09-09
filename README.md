@@ -80,6 +80,41 @@ cd build
 
 ```bash
 ./mbase_nlquery --help
+========================================
+#Program name:      mbase_nlquery
+#Version:           v1.0.0
+#Type:              Application
+#Further docs:      https://github.com/Emreerdog/mbase_nlquery
+***** DESCRIPTION *****
+This program runs the NLQuery application and provides a single REST API endpoint '/nlquery'
+========================================
+
+Usage: mbase_nlquery *[<option> [<value>]]
+Options: 
+
+-h, --help                        Print usage.
+-v, --version                     Shows program version.
+--program-path <str>              NLQuery web page path (default=).
+--model-path <str>                NLQuery model path (default=).
+--hostname <str>                  Hostname to listen to (default="127.0.0.1").
+--port <int>                      Port to listen to (default="8080 if HTTP, 443 if HTTPS").
+--ssl-public <str>                SSL public key file.
+--ssl-private <str>               SSL private key file.
+--api-key <str>                   API key to be checked by the server.
+--schema <str>                    Schema name to query from. For multiple schemas, specify this option multiple times. If no schema name is provided, the NLQuery engine will query all schema information in the database.
+--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).
+--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).
+--disable-webui                   Disables webui.
+--disable-autodownload            Disables automatic download of the missing LLM model.
+--enable-dbmeta-file              If this option is set, the program will store the database's table metadata information in a table.json file so that, when the program starts, it will not get table metadata information from the database.
+--force-credentials               Forces credentials such as username and password to be sent with the message body.
+--hint-file <str>                 Optional text file containing hints and information about the database. If given, may improve performance.
+--db-hostname <str>               Hostname of the postgresql database.
+--db-port <int>                   Port of the database.
+--db-name <str>                   Name of the database.
+--db-username <str>               Username to use for accessing to the database.
+--db-password <str>               Password of the database username.
+--gpu-layers <int>                Number of layers to be offloaded to GPU (default=999).
 ```
 
 ### Running without configuration
