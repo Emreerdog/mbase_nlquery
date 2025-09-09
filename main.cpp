@@ -34,6 +34,7 @@ void print_usage()
     printf("--port <int>                      Port to listen to (default=\"8080 if HTTP, 443 if HTTPS\").\n");
     printf("--ssl-public <str>                SSL public key file.\n");
     printf("--ssl-private <str>               SSL private key file.\n");
+    printf("--api-key <str>                   API key to be checked by the server.\n");
     printf("--schema <str>                    Schema name to query from. For multiple schemas, specify this option multiple times. If no schema name is provided, the NLQuery engine will query all schema information in the database.\n");
     printf("--user-count <int>                Amount of users that the NLQuery can process simultaneously (default=2).\n");
     printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
@@ -113,6 +114,40 @@ void nlquery_endpoint(const httplib::Request& in_req, httplib::Response& in_resp
 {
     mbase::string reqBody(in_req.body.c_str(), in_req.body.size());
     std::pair<mbase::Json::Status, mbase::Json> parseResult = mbase::Json::parse(reqBody);
+
+    if(gApiKey.size())
+    {
+        if(!in_req.has_header("Authorization"))
+        { 
+            in_resp.status = 401;
+            return;
+        }
+        
+        std::string authToken = in_req.get_header_value("Authorization");
+        mbase::string authTokenField(authToken.c_str(), authToken.size());
+        mbase::vector<mbase::string> seperatedField;
+
+        authTokenField.split(" ", seperatedField);
+        if(seperatedField.size() != 2) // 'Bearer' and 'key'
+        {
+            in_resp.status = 401;
+            return;
+        }
+
+        mbase::string bearerString = seperatedField[0];
+
+        if(bearerString != "Bearer")
+        {
+            in_resp.status = 401;
+            return;
+        }
+
+        if(seperatedField[1] != gApiKey)
+        {
+            in_resp.status = 403;
+            return;
+        }
+    }
 
     if(parseResult.first != mbase::Json::Status::success)
     {
@@ -310,6 +345,11 @@ int main(int argc, char** argv)
         else if(argumentString == "--ssl-private")
         {
             mbase::argument_get<mbase::string>::value(i, argc, argv, gSSLPrivatePath);
+        }
+
+        else if(argumentString == "--api-key")
+        {
+            mbase::argument_get<mbase::string>::value(i, argc, argv, gApiKey);
         }
         
         else if(argumentString == "--schema")
