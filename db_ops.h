@@ -120,22 +120,26 @@ GENERIC build_table_metadata(const mbase::string& in_schema_name, const mbase::s
 
 bool psql_get_all_tables(PGconn* in_connection)
 {
-    mbase::string cachedTableJsonString = mbase::read_file_as_string("table.json");
-    if(cachedTableJsonString.size())
+    if(gEnableDbMetafile)
     {
-        // reading from cached table metadata
-        printf("INFO: Reading from cached schema information!\n");
-        mbase::Json tableMetaInformation = mbase::Json::parse(cachedTableJsonString).second;
-        std::map<mbase::string, mbase::Json> schemaObject = tableMetaInformation.getObject();
-        for(auto& n : schemaObject)
+        mbase::string cachedTableJsonString = mbase::read_file_as_string("table.json");
+        if(cachedTableJsonString.size())
         {
-            for(mbase::Json& metadataObject : n.second.getArray())
+            // reading from cached table metadata
+            printf("INFO: Reading from cached schema information!\n");
+            mbase::Json tableMetaInformation = mbase::Json::parse(cachedTableJsonString).second;
+            std::map<mbase::string, mbase::Json> schemaObject = tableMetaInformation.getObject();
+            for(auto& n : schemaObject)
             {
-                build_table_metadata(n.first, metadataObject["table"].getString(), metadataObject["meta"].getArray());
+                for(mbase::Json& metadataObject : n.second.getArray())
+                {
+                    build_table_metadata(n.first, metadataObject["table"].getString(), metadataObject["meta"].getArray());
+                }
             }
+            return true;
         }
-        return true;
     }
+    
 
     if(!gProvidedSchemas.size())
     {
@@ -207,7 +211,10 @@ bool psql_get_all_tables(PGconn* in_connection)
     
         PQclear(resultExec);    
     }
-    mbase::write_string_to_file("table.json", totalJson.toStringPretty());
+    if(gEnableDbMetafile)
+    {
+        mbase::write_string_to_file("table.json", totalJson.toStringPretty());
+    }
     return true;
 }
 

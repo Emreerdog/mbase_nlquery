@@ -39,6 +39,7 @@ void print_usage()
     printf("--max-rows <int>                  Total number of rows that the NLQuery can return (default=1000).\n");
     printf("--disable-webui                   Disables webui.\n");
     printf("--disable-autodownload            Disables automatic download of the missing LLM model.\n");
+    printf("--enable-dbmeta-file              If this option is set, the program will store the database's table metadata information in a table.json file so that, when the program starts, it will not get table metadata information from the database.\n");
     printf("--force-credentials               Forces credentials such as username and password to be sent with the message body.\n");
     printf("--hint-file <str>                 Optional text file containing hints and information about the database. If given, may improve performance.\n");
     printf("--db-hostname <str>               Hostname of the postgresql database.\n");
@@ -343,6 +344,11 @@ int main(int argc, char** argv)
             gAutoDownload = false;
         }
 
+        else if(argumentString == "--enable-dbmeta-file")
+        {
+            gEnableDbMetafile = true;
+        }
+
         else if(argumentString == "--hint-file")
         {
             mbase::argument_get<mbase::string>::value(i, argc, argv, gHintFilePath);
@@ -448,7 +454,7 @@ int main(int argc, char** argv)
                 printf("ERR: NLQuery attempted to download the model from Huggingface but failed. Make sure you have the 'curl' and an internet connection so that the NLQuery will download the model at program startup\n");
                 exit(1);
             }
-            printf("INFO: Model not found at program path\n");
+            printf("INFO: Model is not found at program path\n");
             printf("INFO: Downloading the model from Huggingface: \n");
             mbase::string shellCommand = mbase::string::from_format("cd %s && curl -L -O https://huggingface.co/MBASE/Qwen2.5-7B-Instruct-NLQuery/resolve/main/Qwen2.5-7B-Instruct-1M-NLQuery-q8_0.gguf", gProgramPath.c_str());
             system(shellCommand.c_str());

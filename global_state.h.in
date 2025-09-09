@@ -27,6 +27,7 @@ inline bool gIsWebui = true;
 inline bool gSSLEnabled = false;
 inline bool gForceCredentials = false;
 inline bool gAutoDownload = true;
+inline bool gEnableDbMetafile = false;
 inline mbase::NlqModel* gGlobalModel = nullptr;
 inline mbase::mutex gLoopSync;
 inline mbase::set<mbase::string> gProvidedSchemas;
