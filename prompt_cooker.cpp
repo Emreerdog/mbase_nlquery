@@ -38,6 +38,7 @@ public:
     {
         std::cout << "Processor is initialized." << std::endl;
         std::cout << "Cooking the system prompt." << std::endl;
+        std::cout << "DO NOT CLOSE THE APP!" << std::endl;
         
         mbase::string nlqueryPromptString = mbase::read_file_as_string(nlqueryPromptPath);
         if(!nlqueryPromptString.size())
