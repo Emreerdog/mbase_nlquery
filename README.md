@@ -246,7 +246,7 @@ Which will start the engine with better contextual understanding of your databas
 > Prompt cooker doesn't modify model weights. It only applies a configuration to the gguf file's metadata section.
 
 > [!CAUTION]  
-> DO NOT CLOSE APPLICATION WHILE COOKING THE SYSTEM PROMPT! IF SO, MODEL FILE WILL BE CORRUPTED AND UNUSABLE!
+> Do not close the application while cooking the system prompt! If so, model file will be corrupted and unusable!
 
 Using the `mbase_nlquery_cooker` program, you can configure your Text-to-Text LLM into NLQuery engine compatible LLM.
 
